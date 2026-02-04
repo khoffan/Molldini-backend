@@ -1,12 +1,13 @@
 import { Router } from "express";
-import { addUser, getAllUsers, getUserById, updateUser, deleteUser } from "../controller/userController";
+import { syncUser, getAllUsers, getUserById, updateUser, deleteUser } from "../controller/userController";
+import { checkAuth } from "../middleware/authMiddleware";
 
 const router = Router();
 
-router.post("/users", addUser);
+router.post("/users/me", syncUser);
 router.get("/users", getAllUsers);
-router.get("/users/:id", getUserById);
-router.put("/users/:id", updateUser);
-router.delete("/users/:id", deleteUser);
+router.get("/profile", checkAuth, getUserById);
+router.put("/users/:id", checkAuth, updateUser);
+router.delete("/users/:id", checkAuth, deleteUser);
 
 export default router;

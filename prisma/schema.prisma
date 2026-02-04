@@ -14,19 +14,22 @@ datasource db {
 }
 
 model Users {
-  id            String      @id
-  name          String
-  email         String      @unique
-  imageUrl      String?
-  emailVerified Boolean     @default(false)
-  phoneNumber   String?
-  provider      String?
-  lastLogin     DateTime?   @updatedAt
-  role          Role        @default(USER)
-  cartItems     CartItems[]
-  merchant      Merchant?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id             String         @id
+  name           String
+  email          String         @unique
+  imageUrl       String?
+  emailVerified  Boolean        @default(false)
+  phoneNumber    String?
+  provider       String?
+  lastLogin      DateTime?      @updatedAt
+  role           Role           @default(USER)
+  cartItems      CartItems[]
+  merchant       Merchant?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  addresses      Address[]
+  orders         Order[]
+  pointHistories PointHistory[]
 }
 
 enum Role {
@@ -42,6 +45,7 @@ model Merchant {
   logoUrl     String?
   ownerId     String     @unique
   owner       Users      @relation(fields: [ownerId], references: [id])
+  address     Address?
   products    Products[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -51,7 +55,6 @@ model Products {
   id          String      @id @default(uuid())
   title       String
   description String?
-  category    String?
   price       Float
   image       String?
   cartItems   CartItems[]
@@ -59,6 +62,8 @@ model Products {
   merchant    Merchant    @relation(fields: [merchantId], references: [id])
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  category    Category?   @relation(fields: [categoryId], references: [id])
+  categoryId  String?
 }
 
 model CartItems {
@@ -70,4 +75,104 @@ model CartItems {
   quantity  Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// --- 1. Category Table ---
+model Category {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  products  Products[]
+  createdAt DateTime   @default(now())
+}
+
+// --- 2. Address Table (รองรับทั้ง User และ Merchant) ---
+model Address {
+  id           String  @id @default(uuid())
+  receiverName String?
+  phone        String?
+  detail       String // บ้านเลขที่, ถนน
+  subDistrict  String
+  district     String
+  province     String
+  postcode     String
+  isDefault    Boolean @default(false)
+
+  // Relation ไปยัง User (ที่อยู่จัดส่ง)
+  userId String?
+  user   Users?  @relation(fields: [userId], references: [id])
+
+  // Relation ไปยัง Merchant (ที่อยู่ร้านค้า)
+  merchantId String?   @unique
+  merchant   Merchant? @relation(fields: [merchantId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --- 3. Order & OrderItems (หัวใจของการ Checkout) ---
+model Order {
+  id         String      @id @default(uuid())
+  userId     String
+  user       Users       @relation(fields: [userId], references: [id])
+  totalPrice Float
+  status     OrderStatus @default(PENDING)
+
+  items   OrderItems[]
+  invoice Invoice?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OrderItems {
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  productId String
+  title     String // Snapshot ชื่อสินค้า
+  price     Float // Snapshot ราคา ณ วันที่ซื้อ
+  quantity  Int
+  image     String? // Snapshot รูสินค้า
+}
+
+// --- 4. Payment & Invoice ---
+model Invoice {
+  id            String        @id @default(uuid())
+  orderId       String        @unique
+  order         Order         @relation(fields: [orderId], references: [id])
+  amount        Float
+  paymentMethod String? // เช่น "QR_PROMPTPAY", "CREDIT_CARD"
+  status        PaymentStatus @default(UNPAID)
+  paidAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --- 5. Points System ---
+model PointHistory {
+  id        String   @id @default(uuid())
+  amount    Int // แต้มที่ได้รับ (+) หรือใช้ไป (-)
+  type      String // "EARNED", "REDEEMED"
+  reason    String? // เช่น "Order #123"
+  userId    String
+  user      Users    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+// --- Enums สำหรับสถานะต่างๆ ---
+enum OrderStatus {
+  PENDING // รอชำระเงิน
+  PROCESSING // กำลังเตรียมของ
+  SHIPPED // ส่งแล้ว
+  DELIVERED // ได้รับแล้ว
+  CANCELLED // ยกเลิก
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  FAILED
+  REFUNDED
 }
