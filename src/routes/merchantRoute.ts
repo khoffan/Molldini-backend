@@ -3,8 +3,8 @@ import { addMerchant, getAllMerchants, getMerchantById } from "../controller/mer
 import { checkAuth, isMerchant } from "../middleware/authMiddleware";
 const router = Router();
 
-router.post("/merchants", checkAuth, isMerchant, addMerchant);
+router.post("/merchants", checkAuth, addMerchant);
 router.get("/merchants", checkAuth, isMerchant, getAllMerchants);
-router.get("/merchants/:id", checkAuth, isMerchant, getMerchantById);
+router.get("/merchants/me", checkAuth, isMerchant, getMerchantById);
 
 export default router;

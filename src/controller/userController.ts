@@ -37,6 +37,13 @@ export const syncUser = async (req: Request, res: Response) => {
         });
 
         console.log("Users fetched successfully");
+
+        res.cookie("idtoken", idToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: 24 * 60 * 60 * 1000,
+        });
         return res.status(200).json(user);
     } catch (e: any) {
         console.log("Users fetched failed");

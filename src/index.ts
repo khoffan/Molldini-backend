@@ -9,6 +9,7 @@ import categoryRoute from "./routes/categoryRoute";
 import addressRouter from "./routes/addressRoute";
 import orderRouter from './routes/orderRoute';
 import invoiceRouter from './routes/invoiceRoute';
+import cookieParser from "cookie-parser";
 
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -16,11 +17,12 @@ dotenv.config();
 
 
 const app = express();
+app.use(cookieParser());
 
 app.use(cors({
-    origin: "*",
-    allowedHeaders: "*",
-    methods: "*",
+    origin: "http://localhost:5173",
+    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
 app.use(express.json());

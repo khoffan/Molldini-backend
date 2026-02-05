@@ -52,29 +52,48 @@ model Merchant {
 }
 
 model Products {
-  id          String      @id @default(uuid())
+  id          String    @id @default(uuid())
   title       String
   description String?
-  price       Float
-  image       String?
-  cartItems   CartItems[]
   merchantId  String
-  merchant    Merchant    @relation(fields: [merchantId], references: [id])
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  category    Category?   @relation(fields: [categoryId], references: [id])
+  merchant    Merchant  @relation(fields: [merchantId], references: [id])
   categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+
+  // เชื่อมไปหาตัวเลือกสินค้า
+  variants ProductVariant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductVariant {
+  id        String   @id @default(uuid())
+  productId String
+  product   Products @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  variantName String // เช่น "สีแดง, ไซส์ L"
+  price       Float // ราคาของรูปแบบนี้
+  stock       Int     @default(0) // <--- หัวใจของสต็อกอยู่ที่นี่
+  image       String? // รูปเฉพาะของสีนั้นๆ
+  sku         String? @unique
+
+  cartItems  CartItems[]
+  orderItems OrderItems[] // เปลี่ยน OrderItems มาผูกที่นี่แทน
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model CartItems {
-  id        String   @id @default(uuid())
-  user      Users    @relation(fields: [userId], references: [id])
+  id        String         @id @default(uuid())
+  user      Users          @relation(fields: [userId], references: [id])
   userId    String
-  products  Products @relation(fields: [productId], references: [id])
+  products  ProductVariant @relation(fields: [productId], references: [id])
   productId String
   quantity  Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 }
 
 // --- 1. Category Table ---
@@ -129,11 +148,13 @@ model OrderItems {
   orderId String
   order   Order  @relation(fields: [orderId], references: [id])
 
-  productId String
-  title     String // Snapshot ชื่อสินค้า
-  price     Float // Snapshot ราคา ณ วันที่ซื้อ
-  quantity  Int
-  image     String? // Snapshot รูสินค้า
+  productId        String
+  title            String // Snapshot ชื่อสินค้า
+  price            Float // Snapshot ราคา ณ วันที่ซื้อ
+  quantity         Int
+  image            String? // Snapshot รูสินค้า
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
+  productVariantId String?
 }
 
 // --- 4. Payment & Invoice ---

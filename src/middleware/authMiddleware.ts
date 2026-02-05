@@ -2,20 +2,21 @@ import { Request, Response, NextFunction } from 'express';
 import auth from '../firebase/firebase_config';
 import prisma from '../lib/prisma_config';
 import { Role, Users } from '../../generated/prisma/client';
-
-interface AuthRequest extends Request {
-    user?: Users;
-}
+import { AuthenticatedRequest } from '../interface/authRequestInterface';
 
 
-export const checkAuth = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const authHeader = req.headers.authorization;
 
-    if (!authHeader || authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'Unauthorized' });
+
+export const checkAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    let idToken = req.cookies.idtoken;
+
+    if (!idToken && req.headers.authorization?.startsWith('Bearer ')) {
+        idToken = req.headers.authorization.split('Bearer ')[1];
     }
 
-    const idToken = authHeader.split('Bearer ')[1];
+    if (!idToken) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
 
     try {
         const decodedToken = await auth.verifyIdToken(idToken);
@@ -40,9 +41,23 @@ export const checkAuth = async (req: AuthRequest, res: Response, next: NextFunct
     }
 }
 
-export const isMerchant = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const isMerchant = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (req.user && req.user.role === Role.MERCHANT) {
-        next();
+        try {
+            const merchant = await prisma.merchant.findUnique({
+                where: { ownerId: req.user.id }
+            });
+            if (!merchant) {
+                return res.status(403).json({
+                    message: "Forbidden: Merchant not found"
+                })
+            }
+            req.merchant = merchant;
+            next();
+        } catch (e: any) {
+            console.error(e);
+            return res.status(500).json({ message: e.message });
+        }
     } else {
         res.status(403).json({ message: 'Forbidden: Merchant access required' });
     }
