@@ -14,7 +14,6 @@ const adapter = new PrismaPg(pool)
 const prismaClientSingleton = () => {
   return new PrismaClient({
     adapter,
-    log: ["query"],
   }); // เอา log: ["query"] ออกก่อนเพื่อเช็ค Type
 };
 

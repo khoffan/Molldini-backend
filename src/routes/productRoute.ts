@@ -3,10 +3,81 @@ import { getAllProducts, addProduct, getProductById, getMerchantProducts } from 
 import { checkAuth, isMerchant } from "../middleware/authMiddleware";
 const router = Router();
 
+/**
+ * @openapi
+ * /api/v1/products:
+ *   get:
+ *     summary: ดึงรายการสินค้าทั้งหมด
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: OK
+ */
 router.get("/products", getAllProducts);
-router.get("/products/:id", getProductById);
-router.get("/products/merchant", checkAuth, isMerchant, getMerchantProducts);
-router.post("/products", checkAuth, isMerchant, addProduct);
 
+/**
+ * @openapi
+ * /api/v1/products/{id}:
+ *   get:
+ *     summary: ดึงข้อมูลสินค้าตาม ID
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: OK
+ *       404:
+ *         description: Product not found
+ */
+router.get("/products/:id", getProductById);
+
+/**
+ * @openapi
+ * /api/v1/products/merchant:
+ *   get:
+ *     summary: ดึงสินค้าของร้านค้าปัจจุบัน
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: OK
+ *       403:
+ *         description: Forbidden
+ */
+router.get("/products/merchant", checkAuth, isMerchant, getMerchantProducts);
+
+/**
+ * @openapi
+ * /api/v1/products:
+ *   post:
+ *     summary: เพิ่มสินค้าใหม่ (เฉพาะ Merchant)
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Created
+ *       403:
+ *         description: Forbidden
+ */
+router.post("/products", checkAuth, isMerchant, addProduct);
 
 export default router;

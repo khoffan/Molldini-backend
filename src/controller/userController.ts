@@ -6,6 +6,7 @@ import auth from "../firebase/firebase_config";
 export const syncUser = async (req: Request, res: Response) => {
     const authHeader = req.headers.authorization;
     const idToken = authHeader?.split("Bearer ")[1];
+    console.log("idToken", idToken);
 
     if (!idToken) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -20,7 +21,18 @@ export const syncUser = async (req: Request, res: Response) => {
             where: { email: email },
             update: {
                 name: name || "",
-                imageUrl: picture,
+                image: picture ? {
+                    upsert: {
+                        create: {
+                            url: picture,
+                            path: `users/${uid}/profile.jpg`, // กำหนด path จำลองไว้
+                            fileName: "google_profile",
+                        },
+                        update: {
+                            url: picture,
+                        }
+                    }
+                } : undefined,
                 emailVerified: email_verified,
                 lastLogin: new Date(), // อัปเดตเวลาล็อกอินล่าสุด
             },
@@ -28,11 +40,17 @@ export const syncUser = async (req: Request, res: Response) => {
                 id: uid, // บันทึก UID ที่ได้จาก Firebase
                 email: email!,
                 name: name || "New User",
-                imageUrl: picture,
                 emailVerified: email_verified || false,
                 phoneNumber: phone_number || null,
                 provider: firebase.sign_in_provider,
                 role: "USER",
+                image: picture ? {
+                    create: {
+                        url: picture,
+                        path: `users/${uid}/profile.jpg`,
+                        fileName: "google_profile",
+                    }
+                } : undefined
             },
         });
 

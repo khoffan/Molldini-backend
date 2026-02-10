@@ -6,7 +6,7 @@ import { AuthenticatedRequest } from "../interface/authRequestInterface";
 
 export const addProduct = async (req: AuthenticatedRequest, res: Response) => {
     const merchant = req.merchant as Merchant;
-    const { title, description, categoryId, variants } = req.body;
+    const { title, description, categoryId, variants, images } = req.body;
     // const variantData: Omit<ProductVariant, "id" | "createdAt" | "updatedAt">[] = variants;
     try {
         const newProduct = await prisma.products.create({
@@ -15,18 +15,43 @@ export const addProduct = async (req: AuthenticatedRequest, res: Response) => {
                 description,
                 merchantId: merchant.id,
                 categoryId,
+                images: {
+                    create: images?.map((img: any) => {
+                        return {
+                            url: img.url,
+                            path: img.path,
+                            fileName: img.fileName || "main-image",
+                            mimeType: img.mimeType || "image/jpeg",
+                            size: img.size ? Number(img.size) : null
+                        }
+                    }),
+                },
                 variants: {
                     create: variants.map((v: any) => ({
                         variantName: v.variantName,
                         price: Number(v.price),
                         stock: Number(v.stock),
-                        image: v.image,
-                        sku: v.sku
+                        sku: v.sku,
+                        images: {
+                            create: v.image?.map((img: any) => ({
+                                url: img.url,
+                                path: img.path,
+                                fileName: img.fileName || "variant-image",
+                                mimeType: img.mimeType || "image/jpeg",
+                                size: img.size ? Number(img.size) : null
+                                // Prisma จะใส่ variantId ให้เองอัตโนมัติ
+                            }))
+                        },
                     }))
                 }
             },
             include: {
-                variants: true
+                images: true,
+                variants: {
+                    include: {
+                        images: true
+                    }
+                }
             }
         });
         console.log("Product added successfully");
@@ -46,7 +71,12 @@ export const getMerchantProducts = async (req: AuthenticatedRequest, res: Respon
                 merchantId: merchant.id
             },
             include: {
-                variants: true
+                images: true,
+                variants: {
+                    include: {
+                        images: true
+                    }
+                }
             }
         });
         console.log("Products fetched successfully");
@@ -61,13 +91,28 @@ export const getAllProducts = async (req: Request, res: Response) => {
     try {
         const products = await prisma.products.findMany({
             include: {
-                variants: true
+                images: true,
+                variants: {
+                    include: {
+                        images: true
+                    }
+                },
+                category: true,
+                merchant: {
+                    include: {
+                        address: true,
+                        logoUrl: true
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: "desc"
             }
         });
         console.log("Products fetched successfully");
         return res.status(200).json(products);
     } catch (e: any) {
-        console.log("Products fetched failed");
+        console.log("Products fetched failed error", e.message);
         return res.status(500).json({ message: e.message });
     }
 }

@@ -1,9 +1,28 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma_config";
-import { CartItems } from "../../generated/prisma/client";
+import { CartItems, Carts } from "../../generated/prisma/client";
+import { AuthenticatedRequest } from "../interface/authRequestInterface";
+import { threadCpuUsage } from "process";
+
+const getOrcreateCart = async (userId: string) => {
+    let cart = await prisma.carts.findUnique({
+        where: {
+            userId: userId
+        }
+    });
+
+    if (!cart) {
+        cart = await prisma.carts.create({
+            data: {
+                userId: userId
+            }
+        });
+    }
+    return cart;
+}
 
 const checkProductIdExist = async (productId: string) => {
-    const product = await prisma.products.findUnique({
+    const product = await prisma.productVariant.findUnique({
         where: {
             id: productId
         }
@@ -20,94 +39,152 @@ const checkUserIdExist = async (userId: string) => {
     return user;
 }
 
-export const addToCart = async (req: Request, res: Response) => {
-    const cartItem: Omit<CartItems, "id" | "createdAt" | "updatedAt"> = req.body;
+export const addToCart = async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user!;
+    const { productId, quantity } = req.body;
+    const requestedQuantity = Number(quantity);
     try {
-        const checkProductId = await checkProductIdExist(cartItem.productId);
-        const checkUserId = await checkUserIdExist(cartItem.userId);
-
-        if (!checkProductId) {
-            console.log("Product not found");
-            return res.status(404).json({ message: "Product not found" });
+        const variant = await checkProductIdExist(productId);
+        if (!variant) {
+            return res.status(404).json({ message: "Product variant not found" });
         }
 
-        if (!checkUserId) {
-            console.log("User not found");
-            return res.status(404).json({ message: "User not found" });
-        }
+        const cart = await getOrcreateCart(user.id);
 
-        const existingCartItem = await prisma.cartItems.findFirst({
+        const existingCartItem = await prisma.cartItems.findUnique({
             where: {
-                userId: cartItem.userId,
-                productId: cartItem.productId
+                cartsId_productId: {
+                    cartsId: cart.id,
+                    productId: productId
+                }
             }
         });
 
-        if (existingCartItem) {
-            const updatedCartItem = await prisma.cartItems.update({
-                where: {
-                    id: existingCartItem.id
-                },
-                data: {
-                    quantity: existingCartItem.quantity + cartItem.quantity
-                }
+        const currentInCart = existingCartItem ? existingCartItem.quantity : 0;
+        const totalNewQuantity = currentInCart + requestedQuantity;
+
+        if (totalNewQuantity > variant.stock) {
+            return res.status(400).json({
+                message: `สต็อกไม่พอ (คงเหลือ ${variant.stock} ชิ้น)`,
+                availableStock: variant.stock
             });
-            console.log("Cart item updated successfully");
-            return res.status(200).json(updatedCartItem);
         }
 
-        const newCartItem = await prisma.cartItems.create({
-            data: {...cartItem}
+        const result = await prisma.cartItems.upsert({
+            where: {
+                cartsId_productId: {
+                    cartsId: cart.id,
+                    productId: productId
+                }
+            },
+            update: {
+                quantity: totalNewQuantity
+            },
+            create: {
+                cartsId: cart.id,
+                userId: user.id,
+                productId: productId,
+                quantity: requestedQuantity
+            }
         });
+
+        const getCart = await getOrcreateCart(user.id);
+
         console.log("Cart item added successfully");
-        return res.status(201).json(newCartItem);
-    } catch(e: any) {
+
+        return res.status(201).json(getCart);
+    } catch (e: any) {
         console.log("Cart item added failed");
         console.log(e.message);
         return res.status(500).json({ message: e.message });
     }
 }
 
-export const getCartItems = async (req: Request, res: Response) => {
+export const getCartItems = async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user!;
     try {
-        const cartItems = await prisma.cartItems.findMany();
+        const cart = await prisma.carts.findUnique({
+            where: { userId: user.id },
+            include: {
+                items: true
+            }
+        });
         console.log("Cart items fetched successfully");
-        return res.status(200).json(cartItems);
-    } catch(e: any) {
+        return res.status(200).json(cart || { items: [] });
+    } catch (e: any) {
         console.log("Cart items fetched failed");
         return res.status(500).json({ message: e.message });
     }
 }
 
-export const getCartItemById = async (req: Request, res: Response) => {
+export const getCartItemById = async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
     try {
-        const cartItem = await prisma.cartItems.findUnique({
-            where: {
-                id: id as string
+        const cart = await prisma.carts.findUnique({
+            where: { id: id as string },
+            include: {
+                items: true
             }
         });
         console.log("Cart item fetched successfully");
-        return res.status(200).json(cartItem);
-    } catch(e: any) {
+        return res.status(200).json(cart);
+    } catch (e: any) {
         console.log("Cart item fetched failed");
         return res.status(500).json({ message: e.message });
     }
 }
 
-export const updateCartItem = async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const cartItem: Omit<CartItems, "id" | "createdAt" | "updatedAt"> = req.body;
+export const updateIncrementCartItem = async (req: AuthenticatedRequest, res: Response) => {
+    const { productId } = req.body;
     try {
+        const cart = await getOrcreateCart(req.user!.id);
+
         const updatedCartItem = await prisma.cartItems.update({
             where: {
-                id: id as string
+                cartsId_productId: {
+                    cartsId: cart.id,
+                    productId: productId
+                }
             },
-            data: {...cartItem}
+            data: {
+                quantity: { increment: 1 }
+            }
         });
         console.log("Cart item updated successfully");
         return res.status(200).json(updatedCartItem);
-    } catch(e: any) {
+    } catch (e: any) {
+        console.log("Cart item updated failed");
+        return res.status(500).json({ message: e.message });
+    }
+}
+export const updateDecrementedCartItem = async (req: AuthenticatedRequest, res: Response) => {
+    const { productId } = req.body;
+    try {
+        const cart = await getOrcreateCart(req.user!.id);
+
+        const cartItem = await prisma.cartItems.findUnique({
+            where: {
+                cartsId_productId: {
+                    cartsId: cart.id,
+                    productId: productId
+                }
+            }
+        });
+
+        if (cartItem === null) {
+            return res.status(404).json({ message: "Cart item not found" });
+        }
+
+        if (cart && cartItem!.quantity > 1) {
+            const updated = await prisma.cartItems.update({
+                where: { id: cart.id },
+                data: { quantity: { decrement: 1 } } // Prisma มีคำสั่ง decrement โดยตรงเช่นกัน
+            });
+            console.log("Cart item updated successfully");
+            return res.status(200).json(updated);
+        }
+        return res.status(400).json({ message: "จำนวนขั้นต่ำคือ 1" });
+    } catch (e: any) {
         console.log("Cart item updated failed");
         return res.status(500).json({ message: e.message });
     }
@@ -123,7 +200,7 @@ export const deleteCartItem = async (req: Request, res: Response) => {
         });
         console.log("Cart item deleted successfully");
         return res.status(200).json(deletedCartItem);
-    } catch(e: any) {
+    } catch (e: any) {
         console.log("Cart item deleted failed");
         return res.status(500).json({ message: e.message });
     }
