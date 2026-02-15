@@ -13,12 +13,12 @@ import addressRouter from "./routes/addressRoute";
 import orderRouter from './routes/orderRoute';
 import invoiceRouter from './routes/invoiceRoute';
 import mediaRouter from './routes/mediaRoute';
+import webhookRouter from './webhook/omiseWebhook'
 
 
 const cors = require("cors");
 const dotenv = require("dotenv");
 dotenv.config();
-
 
 const app = express();
 app.use(cookieParser());
@@ -26,7 +26,7 @@ app.use(cookieParser());
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL,
     allowedHeaders: ["Content-Type", "Authorization"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
@@ -47,6 +47,8 @@ app.use(express.json());
 app.get("/", (req, res) => {
     res.send("Hello World!");
 });
+
+app.use("/api/v1", webhookRouter)
 
 app.use("/api/v1", productRoute);
 app.use("/api/v1", cartRoute);

@@ -3,6 +3,27 @@ import prisma from "../lib/prisma_config";
 import { Order, OrderItems, OrderStatus, PaymentStatus } from "../../generated/prisma/client";
 import { AuthenticatedRequest } from "src/interface/authRequestInterface";
 import { Auth } from "firebase-admin/auth";
+import omise from "../lib/omise_confic";
+
+
+const createCharge = async (source: string, amount: number, orderId: string | null): Promise<any> => {
+    return new Promise((resolve, reject) => {
+        omise.charges.create({
+            amount: (amount * 100),
+            currency: "THB",
+            return_uri: `https://supercrowned-unhortative-sun.ngrok-free.dev/success/${orderId}`,
+            metadata: {
+                orderId
+            },
+            source
+        }, (err, res) => {
+            if (err) {
+                reject(err)
+            }
+            resolve(res)
+        });
+    });
+}
 
 export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
     const user = req.user!;
@@ -17,13 +38,11 @@ export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
                 items: true
             }
         })
-        console.log("Cart Data:", cartData);
         const cartItems = cartData?.items;
         if (!cartData || !cartItems || cartItems.length === 0) {
             return res.status(400).json({ message: "Cart is empty or not found" });
         }
 
-        console.log("Cart Data:", cartItems);
         const orderItemsWidthdata = await Promise.all(
             cartData.items.map(async (it) => {
                 const variant = await prisma.productVariant.findUnique({
@@ -48,14 +67,12 @@ export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
                 }
             })
         );
-        console.log("Order Items with Data:", orderItemsWidthdata);
         let totalPrice = 0;
         if (cartData.totalPrice !== 0) {
             totalPrice = cartData.totalPrice;
         } else {
             totalPrice = orderItemsWidthdata.reduce((acc, item) => acc + item.price * item.quantity, 0);
         }
-        console.log("Total Price:", totalPrice);
         const result = await prisma.$transaction(async (tx) => {
             console.log("Creating order in transaction");
             const newOrder = await tx.order.create({
@@ -75,16 +92,22 @@ export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
                             status: PaymentStatus.UNPAID,
                             paymentMethod: paymentMethod
                         }
-                    }
+                    },
+                    expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
                 }
             });
-            console.log("New Order:", newOrder);
-            // await tx.cartItems.deleteMany({
-            //     where: {
-            //         cartsId: cartData.id
-            //     }
-            // });
+            await tx.cartItems.deleteMany({
+                where: {
+                    cartsId: cartId as string // 🎯 ลบทุกอย่างที่เชื่อมกับ Cart นี้
+                }
+            });
 
+            // 3. (Option) ถ้าต้องการเคลียร์ราคารวมของตะกร้าเป็น 0
+            await tx.carts.update({
+                where: { id: cartId as string },
+                data: { totalPrice: 0 }
+            });
+            console.log("update cart items succesfully");
             return newOrder;
         });
         const order = await prisma.order.findUnique({
@@ -93,11 +116,11 @@ export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
             },
             include: {
                 items: true,
-                invoice: true
+                invoice: true,
+                receipt: true
             }
         });
 
-        console.log("Order created successfully", order);
         return res.status(201).json(order);
     } catch (e: any) {
         console.log("Order creation failed", e.message);
@@ -114,9 +137,11 @@ export const getOrderById = async (req: AuthenticatedRequest, res: Response) => 
             },
             include: {
                 items: true,
-                invoice: true
+                invoice: true,
+                receipt: true
             }
         });
+        console.log("Order fetched successfully");
         return res.status(200).json(order);
     } catch (e: any) {
         return res.status(500).json({ message: "Failed to fetch order", error: e.message });
@@ -160,12 +185,58 @@ export const updateOrderData = async (req: AuthenticatedRequest, res: Response) 
             });
             return updatedOrder;
         });
-        console.log("Order and invoice updated successfully ", updateOrderInvoiceData);
+        console.log("Order updated successfully");
         return res.status(200).json(updateOrderInvoiceData);
     } catch (e: unknown) {
         if (e instanceof Error) {
             return res.status(500).json({ message: "Failed to update order", error: e.message });
         }
         return res.status(500).json({ message: "Failed to update order" });
+    }
+}
+
+export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const { orderId } = req.params;
+        const { source } = req.body;
+        const orderData = await prisma.order.findUnique({
+            where: {
+                id: orderId as string
+            },
+            include: {
+                items: true,
+                invoice: true
+            }
+        });
+        const totalPrice: number = orderData?.totalPrice ?? 0;
+        const amount = totalPrice + 40;
+        console.log("🚀 ~ checkoutOrder ~ totalPrice:", totalPrice)
+
+        const orderDataId = orderData?.id || null;
+        const omiseRes = await createCharge(source, amount, orderDataId);
+
+        await prisma.order.update({
+            where: {
+                id: orderId as string
+            },
+            data: {
+                chargeId: omiseRes.id,
+                status: OrderStatus.PROCESSING
+            }
+        })
+        let redirectUrl = null;
+        let code = null;
+        if (omiseRes.source.type !== "promptpay") {
+            redirectUrl = omiseRes.authorize_uri
+        } else {
+            code = omiseRes.source.scannable_code
+        }
+        return res.status(200).json({
+            message: "Order checked out successfully",
+            redirectUrl: redirectUrl,
+            code: code
+        });
+    } catch (e: any) {
+        return res.status(500).json({ message: "Failed to checkout order", error: e.message });
     }
 }

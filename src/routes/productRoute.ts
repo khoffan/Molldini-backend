@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllProducts, addProduct, getProductById, getMerchantProducts } from "../controller/productController";
+import { getAllProducts, addProduct, getProductById, getMerchantProducts, updateProductById } from "../controller/productController";
 import { checkAuth, isMerchant } from "../middleware/authMiddleware";
 const router = Router();
 
@@ -79,5 +79,40 @@ router.get("/products/merchant", checkAuth, isMerchant, getMerchantProducts);
  *         description: Forbidden
  */
 router.post("/products", checkAuth, isMerchant, addProduct);
+
+/**
+ * @openapi
+ * /api/v1/products/{id}:
+ *   put:
+ *     summary: อัปเดตสินค้าตาม ID (เฉพาะ Merchant)
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OK
+ *       403:
+ *         description: Forbidden
+ */
+router.put("/products/:id", checkAuth, isMerchant, updateProductById);
 
 export default router;

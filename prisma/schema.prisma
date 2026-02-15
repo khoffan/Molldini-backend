@@ -158,8 +158,6 @@ model Address {
   merchant     Merchant? @relation(fields: [merchantId], references: [id])
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  invoiceId    String?
-  invoice      Invoice?  @relation(fields: [invoiceId], references: [id])
 
   @@unique([userId, merchantId])
 }
@@ -167,6 +165,7 @@ model Address {
 // --- 3. Order & OrderItems (หัวใจของการ Checkout) ---
 model Order {
   id              String       @id @default(uuid())
+  chargeId        String?
   userId          String
   user            Users        @relation(fields: [userId], references: [id])
   totalPrice      Float
@@ -178,6 +177,8 @@ model Order {
   receiverPhone   String // เบอร์ติดต่อ
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+  expiredAt       DateTime
+  receipt         Receipt?
 }
 
 model OrderItems {
@@ -206,7 +207,22 @@ model Invoice {
   paidAt        DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  addresses     Address[]
+  receipt       Receipt?
+}
+
+model Receipt {
+  id        String  @id @default(uuid())
+  orderId   String  @unique
+  order     Order   @relation(fields: [orderId], references: [id])
+  invoiceId String  @unique
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+
+  receiptNumber String   @unique // เช่น REC20240001
+  amount        Float // ยอดที่จ่ายจริง
+  paymentMethod String // เช่น "PROMPTPAY"
+  omiseChargeId String? // เก็บ ID จาก Omise ไว้ตรวจสอบ
+  paidAt        DateTime @default(now())
+  createdAt     DateTime @default(now())
 }
 
 // --- 5. Points System ---

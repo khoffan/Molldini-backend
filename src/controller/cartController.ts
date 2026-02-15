@@ -8,7 +8,7 @@ const getOrcreateCart = async (userId: string) => {
     let cart = await prisma.carts.findUnique({
         where: {
             userId: userId
-        }
+        },
     });
 
     if (!cart) {
@@ -70,7 +70,7 @@ export const addToCart = async (req: AuthenticatedRequest, res: Response) => {
             });
         }
 
-        const result = await prisma.cartItems.upsert({
+        await prisma.cartItems.upsert({
             where: {
                 cartsId_productId: {
                     cartsId: cart.id,
@@ -88,7 +88,14 @@ export const addToCart = async (req: AuthenticatedRequest, res: Response) => {
             }
         });
 
-        const getCart = await getOrcreateCart(user.id);
+        const getCart = await prisma.carts.findUnique({
+            where: {
+                userId: user.id
+            },
+            include: {
+                items: true
+            }
+        })
 
         console.log("Cart item added successfully");
 
@@ -177,7 +184,7 @@ export const updateDecrementedCartItem = async (req: AuthenticatedRequest, res: 
 
         if (cart && cartItem!.quantity > 1) {
             const updated = await prisma.cartItems.update({
-                where: { id: cart.id },
+                where: { id: cartItem.id },
                 data: { quantity: { decrement: 1 } } // Prisma มีคำสั่ง decrement โดยตรงเช่นกัน
             });
             console.log("Cart item updated successfully");

@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2020",                                  /* เวอร์ชั่น JS ที่ต้องการ */
-    "module": "CommonJS",                                /* ใช้ CommonJS ตามมาตรฐาน Node.js */
-    "moduleResolution": "node",                         /* วิธีการหา Library ใน node_modules */
+    "module": "commonjs",                                /* ใช้ CommonJS ตามมาตรฐาน Node.js */
+    "moduleResolution": "node16",                         /* วิธีการหา Library ใน node_modules */
     "outDir": "./dist",                                 /* โฟลเดอร์สำหรับไฟล์ที่คอมไพล์แล้ว */
     "rootDir": "./src",                                 /* โฟลเดอร์เก็บโค้ด TS */
     "strict": true,                                     /* เปิดโหมดเข้มงวด (แนะนำมาก) */
@@ -11,7 +11,7 @@
     "allowSyntheticDefaultImports": true,                          /* ช่วยให้ import library แบบเก่าได้ */
     "skipLibCheck": true,                               /* ข้ามการเช็ค type ใน library อื่น (ช่วยให้เร็วขึ้น) */
     "forceConsistentCasingInFileNames": true,           /* ป้องกันปัญหาชื่อไฟล์พิมพ์เล็ก-ใหญ่ */
-    "baseUrl": ".",                                     /* สำหรับตั้งค่า path */
+    "baseUrl": ".",                         /* สำหรับตั้งค่า path */
     "paths": {
       "@prisma/client": ["node_modules/@prisma/client"]
     }

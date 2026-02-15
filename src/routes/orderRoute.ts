@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { setOrder, getOrderById, updateOrderData } from '../controller/orderController';
+import { setOrder, getOrderById, updateOrderData, checkoutOrder } from '../controller/orderController';
 import { checkAuth } from '../middleware/authMiddleware';
 
 const router = Router();
@@ -87,6 +87,39 @@ router.get("/orders/:id", checkAuth, getOrderById);
  */
 
 router.put("/orders/:id/data/:cartId", checkAuth, updateOrderData);
+
+
+/**
+ * @openapi
+ * /api/v1/checkout/{orderId}:
+ *   post:
+ *     summary: จ่ายเงินคำสั่งซื้อ
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               paymentMethod:
+ *                 type: string
+ *                 enum: [CREDIT_CARD, CASH]
+ *     responses:
+ *       200:
+ *         description: OK
+ *       404:
+ *         description: Order not found
+ */
+router.post("/checkout/:orderId", checkAuth, checkoutOrder);
 
 
 export default router;

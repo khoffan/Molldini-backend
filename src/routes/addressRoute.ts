@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { setAddress, getAllAddress, getAddresById } from '../controller/addressController'
+import { setAddressUser, getAllAddress, getAddresById, updateAddressById, deleteAddressById } from '../controller/addressController'
+import { checkAuth } from "../middleware/authMiddleware";
 
 const router = Router();
 
@@ -76,6 +77,11 @@ router.get("/addresses/:id", getAddresById);
  *       401:
  *         description: Unauthorized
  */
-router.post("/addresses", setAddress);
+router.post("/address/me", checkAuth, setAddressUser);
+
+
+router.put("/address/:id/edit", checkAuth, updateAddressById);
+
+router.delete("/address/:id/delete", checkAuth, deleteAddressById);
 
 export default router;

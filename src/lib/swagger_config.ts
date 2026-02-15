@@ -37,7 +37,7 @@ const options: swaggerJsdoc.Options = {
         },
     },
     // ชี้ไปที่ไฟล์ Route ทั้งหมดของคุณเพื่ออ่าน Annotation
-    apis: ['./src/routes/*.ts', './index.ts'],
+    apis: ['./src/routes/*.ts', './src/webhook/*.ts', './index.ts'],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);
