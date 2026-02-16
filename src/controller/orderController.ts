@@ -1,6 +1,6 @@
 import { Request, Response, Errback } from "express";
 import prisma from "../lib/prisma_config";
-import { Order, OrderItems, OrderStatus, PaymentStatus } from "../../generated/prisma/client";
+import { Order, OrderItems, OrderStatus, PaymentStatus, SubOrderStatus } from "../../generated/prisma/client";
 import { AuthenticatedRequest } from "src/interface/authRequestInterface";
 import { Auth } from "firebase-admin/auth";
 import omise from "../lib/omise_confic";
@@ -43,12 +43,24 @@ export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
             return res.status(400).json({ message: "Cart is empty or not found" });
         }
 
-        const orderItemsWidthdata = await Promise.all(
+        const orderItemsWithdata = await Promise.all(
             cartData.items.map(async (it) => {
                 const variant = await prisma.productVariant.findUnique({
                     where: { id: it.productId },
                     include: {
-                        product: true,
+                        product: {
+                            select: {
+                                title: true,
+                                description: true,
+                                merchantId: true,
+                                merchant: {
+                                    select: {
+                                        ownerId: true,
+                                        name: true,
+                                    }
+                                }
+                            }
+                        },
                         images: true
                     }
                 })
@@ -60,6 +72,8 @@ export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
                 return {
                     productId: variant.productId, // id ของสินค้าหลัก
                     productVariantId: variant.id,  // id ของ variant
+                    merchantId: variant.product.merchantId,
+                    merchantName: variant.product.merchant.name,
                     title: variant.product.title, // snapshot ชื่อ
                     price: variant.price,         // snapshot ราคา
                     image: variant.images[0]?.url || "",
@@ -67,28 +81,59 @@ export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
                 }
             })
         );
-        let totalPrice = 0;
-        if (cartData.totalPrice !== 0) {
-            totalPrice = cartData.totalPrice;
-        } else {
-            totalPrice = orderItemsWidthdata.reduce((acc, item) => acc + item.price * item.quantity, 0);
-        }
+
+        const groupedByMerchant = orderItemsWithdata.reduce((acc, item) => {
+            const mId = item.merchantId;
+            if (!acc[mId]) {
+                acc[mId] = {
+                    merchantName: item.merchantName,
+                    items: [],
+                    subTotal: 0
+                };
+            }
+            acc[mId].items.push(item);
+            acc[mId].subTotal += item.price * item.quantity;
+            return acc;
+        }, {} as Record<string, any>);
+        const finalTotalPrice = orderItemsWithdata.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        // let totalPrice = 0;
+        // if (cartData.totalPrice !== 0) {
+        //     totalPrice = cartData.totalPrice;
+        // } else {
+        //     totalPrice = orderItemsWithdata.reduce((acc, item) => acc + item.price * item.quantity, 0);
+        // }
         const result = await prisma.$transaction(async (tx) => {
             console.log("Creating order in transaction");
             const newOrder = await tx.order.create({
                 data: {
                     userId: user.id,
                     status: OrderStatus.PENDING,
-                    items: {
-                        create: orderItemsWidthdata
-                    },
                     shippingAddress: shippingAddress,
                     receiverName: receiverName,
                     receiverPhone: receiverPhone,
-                    totalPrice: totalPrice,
+                    totalPrice: finalTotalPrice,
+                    subOrders: {
+                        create: Object.entries(groupedByMerchant).map(([mId, data]: [string, any]) => ({
+                            merchantId: mId,
+                            merchantName: data.merchantName,
+                            shippingFee: 0, // ปรับจูนตาม logic ค่าส่งของคุณในอนาคต
+                            status: SubOrderStatus.PENDING,
+                            orderItems: {
+                                create: data.items.map((it: any) => ({
+                                    productId: it.productId,
+                                    merchantId: it.merchantId,
+                                    title: it.title,
+                                    price: it.price,
+                                    quantity: it.quantity,
+                                    image: it.image,
+                                    productVariantId: it.productVariantId
+                                }))
+                            }
+                        }))
+                    },
                     invoice: {
                         create: {
-                            amount: totalPrice,
+                            amount: finalTotalPrice,
                             status: PaymentStatus.UNPAID,
                             paymentMethod: paymentMethod
                         }
@@ -110,18 +155,22 @@ export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
             console.log("update cart items succesfully");
             return newOrder;
         });
-        const order = await prisma.order.findUnique({
+        const completeOrder = await prisma.order.findUnique({
             where: {
                 id: result.id
             },
             include: {
-                items: true,
+                subOrders: {
+                    include: {
+                        orderItems: true
+                    }
+                },
                 invoice: true,
                 receipt: true
             }
         });
-
-        return res.status(201).json(order);
+        console.log("Order created successfully");
+        return res.status(201).json(completeOrder);
     } catch (e: any) {
         console.log("Order creation failed", e.message);
         return res.status(500).json({ message: "Failed to create order", error: e.message });
@@ -136,7 +185,11 @@ export const getOrderById = async (req: AuthenticatedRequest, res: Response) => 
                 id: id as string
             },
             include: {
-                items: true,
+                subOrders: {
+                    include: {
+                        orderItems: true
+                    }
+                },
                 invoice: true,
                 receipt: true
             }
@@ -161,10 +214,13 @@ export const updateOrderData = async (req: AuthenticatedRequest, res: Response) 
                     shippingAddress: shippingAddress,
                     receiverName: receiverName,
                     receiverPhone: receiverPhone,
-                    status: OrderStatus.PROCESSING,
                 },
                 include: {
-                    items: true,
+                    subOrders: {
+                        include: {
+                            orderItems: true
+                        }
+                    },
                     invoice: true
                 }
             });
@@ -204,7 +260,11 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
                 id: orderId as string
             },
             include: {
-                items: true,
+                subOrders: {
+                    include: {
+                        orderItems: true
+                    }
+                },
                 invoice: true
             }
         });
@@ -221,7 +281,6 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
             },
             data: {
                 chargeId: omiseRes.id,
-                status: OrderStatus.PROCESSING
             }
         })
         let redirectUrl = null;

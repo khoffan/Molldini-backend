@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { syncUser, getAllUsers, getUserById, updateUser, deleteUser, updateAddressUser } from "../controller/userController";
+import { syncUser, getAllUsers, getUserById, updateUser, deleteUser, updateAddressUser, updateFCMToken } from "../controller/userController";
 import { checkAuth } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -95,6 +95,7 @@ router.get("/profile", checkAuth, getUserById);
  *         description: Deleted
  */
 router.put("/users/:id", checkAuth, updateUser);
+router.put("/update-fcm-token", checkAuth, updateFCMToken);
 router.put("/users/address/me", checkAuth, updateAddressUser);
 router.delete("/users/:id", checkAuth, deleteUser);
 

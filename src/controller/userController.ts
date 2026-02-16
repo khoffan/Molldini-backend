@@ -107,7 +107,11 @@ export const getUserById = async (req: AuthenticatedRequest, res: Response) => {
                 },
                 orders: {
                     include: {
-                        items: true,
+                        subOrders: {
+                            include: {
+                                orderItems: true
+                            }
+                        },
                         invoice: true
                     }
                 }
@@ -170,6 +174,34 @@ export const updateAddressUser = async (req: AuthenticatedRequest, res: Response
         return res.status(201).json(setAddressuser);
     } catch (e: any) {
         return res.status(500).json({ message: e.message });
+    }
+}
+
+export const updateFCMToken = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const user = req.user!;
+        const { token }: { token: string } = req.body;
+        await prisma.userDevices.upsert({
+            where: {
+                fcmToken: token
+            },
+            create: {
+                userId: user.id as string,
+                fcmToken: token,
+            },
+            update: {
+                fcmToken: token,
+                userId: user.id as string
+            }
+        })
+        return res.status(200).json({
+            message: "update fcm token successfully"
+        });
+    } catch (e: any) {
+        return res.status(500).json({
+            message: "update fcm token failed",
+            err: e.message
+        });
     }
 }
 

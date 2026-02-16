@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import { AuthenticatedRequest } from "../interface/authRequestInterface";
 import prisma from "../lib/prisma_config";
-import { OrderStatus, PaymentStatus } from "../../generated/prisma/client";
+import { OrderStatus, PaymentStatus, SubOrderStatus } from "../../generated/prisma/client";
 import { updateOrderData } from "src/controller/orderController";
 const router = Router();
 
@@ -19,12 +19,16 @@ router.post("/webhook", async (req: AuthenticatedRequest, res: Response) => {
                     id: orderId
                 },
                 include: {
-                    items: true,
+                    subOrders: {
+                        include: {
+                            orderItems: true
+                        }
+                    },
                     invoice: true
                 }
             })
 
-            if (existingOrder && existingOrder.status === OrderStatus.DELIVERED) {
+            if (existingOrder && existingOrder.status === OrderStatus.PAID) {
                 return res.status(200).json({ message: "Order already delivered" });
             }
 
@@ -37,11 +41,24 @@ router.post("/webhook", async (req: AuthenticatedRequest, res: Response) => {
                             id: orderId
                         },
                         data: {
-                            status: OrderStatus.DELIVERED
+                            status: OrderStatus.PAID
                         },
                         include: {
-                            items: true,
+                            subOrders: {
+                                include: {
+                                    orderItems: true
+                                }
+                            },
                             invoice: true
+                        }
+                    })
+
+                    await tx.subOrder.updateMany({
+                        where: {
+                            orderId: orderId
+                        },
+                        data: {
+                            status: SubOrderStatus.PREPARING
                         }
                     })
 
@@ -67,17 +84,19 @@ router.post("/webhook", async (req: AuthenticatedRequest, res: Response) => {
                         }
                     })
 
-                    const orderItems = orderUpdate.items;
-                    await Promise.all(orderItems.map(async (it) => {
-                        await tx.productVariant.update({
-                            where: {
-                                id: it.productVariantId as string
-                            },
-                            data: {
-                                stock: {
-                                    decrement: it.quantity
+                    const subOrders = orderUpdate.subOrders;
+                    await Promise.all(subOrders.map(async (sub) => {
+                        sub.orderItems.map(async (it) => {
+                            await tx.productVariant.update({
+                                where: {
+                                    id: it.productVariantId as string
+                                },
+                                data: {
+                                    stock: {
+                                        decrement: it.quantity
+                                    }
                                 }
-                            }
+                            })
                         })
                     }))
                 });

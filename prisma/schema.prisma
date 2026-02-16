@@ -21,7 +21,7 @@ model Users {
   emailVerified  Boolean        @default(false)
   phoneNumber    String?
   provider       String?
-  lastLogin      DateTime?      @updatedAt
+  lastLogin      DateTime?
   role           Role           @default(USER)
   cartItems      CartItems[]
   merchant       Merchant?
@@ -31,12 +31,26 @@ model Users {
   orders         Order[]
   pointHistories PointHistory[]
   carts          Carts?
+  userDevices    UserDevices[]
 }
 
 enum Role {
   USER
   MERCHANT
   ADMIN
+}
+
+model UserDevices {
+  id         String  @id @default(uuid())
+  userId     String
+  user       Users   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fcmToken   String  @unique
+  deviceType String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Merchant {
@@ -164,28 +178,43 @@ model Address {
 
 // --- 3. Order & OrderItems (หัวใจของการ Checkout) ---
 model Order {
-  id              String       @id @default(uuid())
+  id              String      @id @default(uuid())
   chargeId        String?
   userId          String
-  user            Users        @relation(fields: [userId], references: [id])
-  totalPrice      Float
-  status          OrderStatus  @default(PENDING)
-  items           OrderItems[]
+  user            Users       @relation(fields: [userId], references: [id])
+  totalPrice      Float       @default(0)
+  status          OrderStatus @default(PENDING)
   invoice         Invoice?
   shippingAddress String // เช่น "บ้านเลขที่... เขต... แขวง..."
   receiverName    String // ชื่อผู้รับสินค้า
   receiverPhone   String // เบอร์ติดต่อ
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
   expiredAt       DateTime
   receipt         Receipt?
+  subOrders       SubOrder[]
+}
+
+model SubOrder {
+  id           String         @id @default(uuid())
+  orderId      String
+  order        Order          @relation(fields: [orderId], references: [id])
+  merchantId   String
+  merchantName String?
+  shippingFee  Float          @default(0)
+  totalPrice   Float          @default(0)
+  status       SubOrderStatus @default(PENDING)
+  createAt     DateTime       @default(now())
+  updateAt     DateTime       @updatedAt
+  orderItems   OrderItems[]
 }
 
 model OrderItems {
   id               String          @id @default(uuid())
-  orderId          String
-  order            Order           @relation(fields: [orderId], references: [id])
+  subOrderId       String
+  subOrder         SubOrder        @relation(fields: [subOrderId], references: [id])
   productId        String
+  merchantId       String
   title            String // Snapshot ชื่อสินค้า
   price            Float // Snapshot ราคา ณ วันที่ซื้อ
   quantity         Int
@@ -193,7 +222,7 @@ model OrderItems {
   productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
   productVariantId String?
 
-  @@unique([orderId, productVariantId])
+  @@unique([subOrderId, productVariantId])
 }
 
 // --- 4. Payment & Invoice ---
@@ -238,11 +267,18 @@ model PointHistory {
 
 // --- Enums สำหรับสถานะต่างๆ ---
 enum OrderStatus {
-  PENDING // รอชำระเงิน
-  PROCESSING // กำลังเตรียมของ
-  SHIPPED // ส่งแล้ว
-  DELIVERED // ได้รับแล้ว
-  CANCELLED // ยกเลิก
+  PENDING // ลูกค้ากดสั่งซื้อแล้ว (รอชำระเงิน)
+  PAID // ชำระเงินสำเร็จ (รอกระจายงานให้ร้านค้า)
+  CANCELLED // ยกเลิกโดยลูกค้า หรือหมดเวลาชำระเงิน
+  COMPLETED // ทุก SubOrder ส่งถึงมือลูกค้าเรียบร้อยแล้ว
+}
+
+enum SubOrderStatus {
+  PENDING //รอการชำระเงิน
+  PREPARING // ร้านค้าได้รับออเดอร์และกำลังแพ็คของ
+  SHIPPED // ร้านค้าส่งของให้ขนส่งแล้ว
+  DELIVERED // สินค้าจากร้านนี้ถึงมือลูกค้าแล้ว
+  CANCELLED // ร้านค้ากดยกเลิก (เช่น สินค้าหมด)
 }
 
 enum PaymentStatus {
