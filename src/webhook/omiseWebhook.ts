@@ -11,6 +11,7 @@ router.post("/webhook", async (req: AuthenticatedRequest, res: Response) => {
 
         if (req.body.key === 'charge.complete') {
             const chargeData = req.body.data;
+            console.log("chargeData =>", chargeData);
             const chargeId = chargeData.id;
             const chargeStatus = chargeData.status;
             const orderId = chargeData.metadata.orderId;
@@ -33,7 +34,7 @@ router.post("/webhook", async (req: AuthenticatedRequest, res: Response) => {
             }
 
             if (chargeStatus === 'successful') {
-                const receiptNumber = `RE-${Math.floor(100000 + Math.random() * 900000)}`;
+                const receiptNumber = `RE-${Date.now().toLocaleString}`;
 
                 await prisma.$transaction(async (tx) => {
                     const orderUpdate = await tx.order.update({
@@ -67,7 +68,8 @@ router.post("/webhook", async (req: AuthenticatedRequest, res: Response) => {
                             orderId: orderUpdate.id as string
                         },
                         data: {
-                            status: PaymentStatus.PAID
+                            status: PaymentStatus.PAID,
+                            paidAt: new Date(),
                         },
 
                     })
@@ -86,7 +88,7 @@ router.post("/webhook", async (req: AuthenticatedRequest, res: Response) => {
 
                     const subOrders = orderUpdate.subOrders;
                     await Promise.all(subOrders.map(async (sub) => {
-                        sub.orderItems.map(async (it) => {
+                        await Promise.all(sub.orderItems.map(async (it) => {
                             await tx.productVariant.update({
                                 where: {
                                     id: it.productVariantId as string
@@ -97,7 +99,7 @@ router.post("/webhook", async (req: AuthenticatedRequest, res: Response) => {
                                     }
                                 }
                             })
-                        })
+                        }))
                     }))
                 });
                 console.log(`✅ Payment Success: Order ${orderId}`);

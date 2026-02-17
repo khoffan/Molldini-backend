@@ -125,17 +125,38 @@ export const getUserById = async (req: AuthenticatedRequest, res: Response) => {
     }
 }
 
-export const updateUser = async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const user: Omit<Users, "id" | "createdAt" | "updatedAt"> = req.body;
+export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.user!;
+    const { displayName, emailVerify, phoneNumber } = req.body;
     try {
         const updatedUser = await prisma.users.update({
             where: {
-                id: id as string
+                id: id
             },
-            data: { ...user },
+            data: {
+                name: displayName,
+                emailVerified: emailVerify,
+                phoneNumber: phoneNumber
+            },
             include: {
-                image: true
+                image: true,
+                addresses: true,
+                merchant: {
+                    include: {
+                        address: true,
+                        logoUrl: true
+                    }
+                },
+                orders: {
+                    include: {
+                        subOrders: {
+                            include: {
+                                orderItems: true
+                            }
+                        },
+                        invoice: true
+                    }
+                }
             }
         });
         console.log("User updated successfully");

@@ -28,7 +28,7 @@ const createCharge = async (source: string, amount: number, orderId: string | nu
 export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
     const user = req.user!;
     const { cartId } = req.params;
-    const { shippingAddress, paymentMethod, receiverName, receiverPhone } = req.body;
+    const { shippingAddress, paymentMethod, receiverName, receiverPhone, selectedItems } = req.body;
     try {
         const cartData = await prisma.carts.findUnique({
             where: {
@@ -38,13 +38,14 @@ export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
                 items: true
             }
         })
-        const cartItems = cartData?.items;
+        console.log("cartData => ", cartData);
+        const cartItems = cartData?.items.filter(item => selectedItems.includes(item.productId));
         if (!cartData || !cartItems || cartItems.length === 0) {
             return res.status(400).json({ message: "Cart is empty or not found" });
         }
 
         const orderItemsWithdata = await Promise.all(
-            cartData.items.map(async (it) => {
+            cartItems.map(async (it) => {
                 const variant = await prisma.productVariant.findUnique({
                     where: { id: it.productId },
                     include: {
@@ -140,17 +141,6 @@ export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
                     },
                     expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
                 }
-            });
-            await tx.cartItems.deleteMany({
-                where: {
-                    cartsId: cartId as string // 🎯 ลบทุกอย่างที่เชื่อมกับ Cart นี้
-                }
-            });
-
-            // 3. (Option) ถ้าต้องการเคลียร์ราคารวมของตะกร้าเป็น 0
-            await tx.carts.update({
-                where: { id: cartId as string },
-                data: { totalPrice: 0 }
             });
             console.log("update cart items succesfully");
             return newOrder;
@@ -260,6 +250,7 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
                 id: orderId as string
             },
             include: {
+                user: true,
                 subOrders: {
                     include: {
                         orderItems: true
@@ -268,21 +259,42 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
                 invoice: true
             }
         });
+        const productVariantIdsInOrder = orderData?.subOrders
+            .flatMap(sub => sub.orderItems)
+            .map(item => item.productVariantId);
         const totalPrice: number = orderData?.totalPrice ?? 0;
-        const amount = totalPrice + 40;
+        const amount = totalPrice;
         console.log("🚀 ~ checkoutOrder ~ totalPrice:", totalPrice)
 
         const orderDataId = orderData?.id || null;
         const omiseRes = await createCharge(source, amount, orderDataId);
 
-        await prisma.order.update({
-            where: {
-                id: orderId as string
-            },
-            data: {
-                chargeId: omiseRes.id,
+        await prisma.$transaction(async (tx) => {
+            await tx.order.update({
+                where: {
+                    id: orderId as string
+                },
+                data: {
+                    chargeId: omiseRes.id,
+                }
+            })
+
+            // 2. ลบสินค้าออกจากตะกร้า เฉพาะชิ้นที่จ่ายเงินซื้อไปแล้ว
+            if (productVariantIdsInOrder && productVariantIdsInOrder.length > 0) {
+                await tx.cartItems.deleteMany({
+                    where: {
+                        // ระบุ Cart ของ User คนนี้ (สมมติว่าคุณมีความสัมพันธ์นี้)
+                        userId: req.user?.id,
+                        // หรือถ้า CartItem มี userId ตรงๆ ก็ใช้เสร็จได้เลย
+                        productId: {
+                            in: productVariantIdsInOrder as string[]
+                        }
+                    }
+                });
             }
         })
+
+
         let redirectUrl = null;
         let code = null;
         if (omiseRes.source.type !== "promptpay") {
@@ -296,6 +308,7 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
             code: code
         });
     } catch (e: any) {
+        console.log("Checkout order failed", e.message);
         return res.status(500).json({ message: "Failed to checkout order", error: e.message });
     }
 }
