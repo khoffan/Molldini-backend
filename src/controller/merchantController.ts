@@ -73,6 +73,9 @@ export const getMerchantById = async (req: AuthenticatedRequest, res: Response) 
                 address: true,
             }
         });
+        if (!merchant) {
+            return res.status(404).json({ message: "Merchant not found" });
+        }
         console.log("Merchant fetched successfully");
         return res.status(200).json(merchant);
     } catch (e: any) {

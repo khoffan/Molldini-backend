@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllProducts, addProduct, getProductById, getMerchantProducts, updateProductById } from "../controller/productController";
+import { getAllProducts, addProduct, getProductById, getMerchantProducts, updateProductById, searchingProducts } from "../controller/productController";
 import { checkAuth, isMerchant } from "../middleware/authMiddleware";
 const router = Router();
 
@@ -14,6 +14,9 @@ const router = Router();
  *         description: OK
  */
 router.get("/products", getAllProducts);
+
+router.get("/products/search", searchingProducts);
+
 
 /**
  * @openapi

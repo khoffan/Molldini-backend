@@ -34,7 +34,12 @@ router.post("/webhook", async (req: AuthenticatedRequest, res: Response) => {
             }
 
             if (chargeStatus === 'successful') {
-                const receiptNumber = `RE-${Date.now().toLocaleString}`;
+                const now = new Date();
+                const timestamp = now.toISOString().replace(/[-T:.Z]/g, "");
+                // จะได้รูปแบบ YYYYMMDDHHMMSSmmm
+                const receiptNumber = `RE-${timestamp}-${Math.floor(Math.random() * 100000)}`;
+
+                console.log(receiptNumber); // ผลลัพธ์: RE-20260218171538123
 
                 await prisma.$transaction(async (tx) => {
                     const orderUpdate = await tx.order.update({
@@ -74,7 +79,7 @@ router.post("/webhook", async (req: AuthenticatedRequest, res: Response) => {
 
                     })
 
-                    await tx.receipt.create({
+                    const recipt = await tx.receipt.create({
                         data: {
                             amount: orderUpdate.totalPrice,
                             paymentMethod: invopiceUpdate.paymentMethod!,
@@ -85,22 +90,36 @@ router.post("/webhook", async (req: AuthenticatedRequest, res: Response) => {
                             receiptNumber: receiptNumber.toString()
                         }
                     })
-
-                    const subOrders = orderUpdate.subOrders;
-                    await Promise.all(subOrders.map(async (sub) => {
-                        await Promise.all(sub.orderItems.map(async (it) => {
-                            await tx.productVariant.update({
-                                where: {
-                                    id: it.productVariantId as string
-                                },
-                                data: {
-                                    stock: {
-                                        decrement: it.quantity
+                    if (recipt) {
+                        const subOrders = orderUpdate.subOrders;
+                        const cartItemId = orderUpdate.subOrders.flatMap((sub) => sub.orderItems.map((it) => it.cartItemId));
+                        await Promise.all(subOrders.map(async (sub) => {
+                            await Promise.all(sub.orderItems.map(async (it) => {
+                                await tx.productVariant.update({
+                                    where: {
+                                        id: it.productVariantId as string
+                                    },
+                                    data: {
+                                        stock: {
+                                            decrement: it.quantity
+                                        }
                                     }
+                                })
+                                if (cartItemId && cartItemId.length > 0) {
+                                    await Promise.all(
+                                        cartItemId.map(async (cartItemId) => {
+                                            await tx.cartItems.delete({
+                                                where: {
+                                                    id: cartItemId
+                                                }
+                                            })
+                                        })
+                                    )
                                 }
-                            })
+                            }))
                         }))
-                    }))
+                    }
+
                 });
                 console.log(`✅ Payment Success: Order ${orderId}`);
             } else {

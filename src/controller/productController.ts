@@ -118,6 +118,40 @@ export const getAllProducts = async (req: Request, res: Response) => {
     }
 }
 
+export const searchingProducts = async (req: Request, res: Response) => {
+    const { search } = req.query;
+    try {
+        const products = await prisma.products.findMany(
+            {
+                where: {
+                    title: {
+                        contains: search as string,
+                        mode: "insensitive"
+                    },
+                },
+                include: {
+                    images: true,
+                    variants: {
+                        include: {
+                            images: true
+                        },
+                    },
+                    merchant: {
+                        select: {
+                            name: true,
+                            logoUrl: true
+                        }
+                    }
+                }
+            }
+        );
+        console.log("Products fetched successfully");
+        return res.status(200).json(products);
+    } catch (e: any) {
+        return res.status(500).json({ message: e.message });
+    }
+}
+
 export const getProductById = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {

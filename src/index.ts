@@ -13,7 +13,9 @@ import addressRouter from "./routes/addressRoute";
 import orderRouter from './routes/orderRoute';
 import invoiceRouter from './routes/invoiceRoute';
 import mediaRouter from './routes/mediaRoute';
+import notiRoute from './routes/notiRoute';
 import webhookRouter from './webhook/omiseWebhook'
+import { initOrderCron } from "./cron/orderChecker";
 
 
 const cors = require("cors");
@@ -32,6 +34,8 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+
+initOrderCron();
 
 
 // ตัวอย่างการเขียน Annotation ใน index.ts
@@ -58,6 +62,7 @@ app.use("/api/v1", categoryRoute);
 app.use("/api/v1", addressRouter);
 app.use("/api/v1", orderRouter);
 app.use("/api/v1", invoiceRouter);
+app.use("/api/v1", notiRoute)
 app.use("/medias", mediaRouter);
 
 app.listen(process.env.PORT || 3000, () => {

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import auth from '../firebase/firebase_config';
+import { auth } from '../firebase/firebase_config';
 import prisma from '../lib/prisma_config';
 import { Role, Users } from '../../generated/prisma/client';
 import { AuthenticatedRequest } from '../interface/authRequestInterface';

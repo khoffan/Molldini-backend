@@ -71,6 +71,7 @@ export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
                 }
 
                 return {
+                    cartItemId: it.id,
                     productId: variant.productId, // id ของสินค้าหลัก
                     productVariantId: variant.id,  // id ของ variant
                     merchantId: variant.product.merchantId,
@@ -121,6 +122,7 @@ export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
                             status: SubOrderStatus.PENDING,
                             orderItems: {
                                 create: data.items.map((it: any) => ({
+                                    cartItemId: it.cartItemId,
                                     productId: it.productId,
                                     merchantId: it.merchantId,
                                     title: it.title,
@@ -223,12 +225,6 @@ export const updateOrderData = async (req: AuthenticatedRequest, res: Response) 
                     paymentMethod: paymentMethod
                 }
             });
-
-            await tx.cartItems.deleteMany({
-                where: {
-                    cartsId: cartId as string
-                },
-            });
             return updatedOrder;
         });
         console.log("Order updated successfully");
@@ -259,12 +255,8 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
                 invoice: true
             }
         });
-        const productVariantIdsInOrder = orderData?.subOrders
-            .flatMap(sub => sub.orderItems)
-            .map(item => item.productVariantId);
         const totalPrice: number = orderData?.totalPrice ?? 0;
         const amount = totalPrice;
-        console.log("🚀 ~ checkoutOrder ~ totalPrice:", totalPrice)
 
         const orderDataId = orderData?.id || null;
         const omiseRes = await createCharge(source, amount, orderDataId);
@@ -278,20 +270,6 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
                     chargeId: omiseRes.id,
                 }
             })
-
-            // 2. ลบสินค้าออกจากตะกร้า เฉพาะชิ้นที่จ่ายเงินซื้อไปแล้ว
-            if (productVariantIdsInOrder && productVariantIdsInOrder.length > 0) {
-                await tx.cartItems.deleteMany({
-                    where: {
-                        // ระบุ Cart ของ User คนนี้ (สมมติว่าคุณมีความสัมพันธ์นี้)
-                        userId: req.user?.id,
-                        // หรือถ้า CartItem มี userId ตรงๆ ก็ใช้เสร็จได้เลย
-                        productId: {
-                            in: productVariantIdsInOrder as string[]
-                        }
-                    }
-                });
-            }
         })
 
 

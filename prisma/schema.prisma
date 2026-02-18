@@ -32,6 +32,7 @@ model Users {
   pointHistories PointHistory[]
   carts          Carts?
   userDevices    UserDevices[]
+  notifications  Notification[]
 }
 
 enum Role {
@@ -89,6 +90,7 @@ model ProductVariant {
   stock       Int          @default(0) // <--- หัวใจของสต็อกอยู่ที่นี่
   images      Media[] // รูปเฉพาะของสีนั้นๆ
   sku         String?      @unique
+  isActive    Boolean      @default(true)
   cartItems   CartItems[]
   orderItems  OrderItems[] // เปลี่ยน OrderItems มาผูกที่นี่แทน
   createdAt   DateTime     @default(now())
@@ -215,6 +217,7 @@ model OrderItems {
   subOrder         SubOrder        @relation(fields: [subOrderId], references: [id])
   productId        String
   merchantId       String
+  cartItemId       String
   title            String // Snapshot ชื่อสินค้า
   price            Float // Snapshot ราคา ณ วันที่ซื้อ
   quantity         Int
@@ -263,6 +266,21 @@ model PointHistory {
   userId    String   @unique
   user      Users    @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String // ผู้รับ
+  title     String // หัวข้อ เช่น "ออเดอร์ถูกยกเลิก"
+  body      String // รายละเอียด
+  type      String // หมวดหมู่ (ORDER, PROMOTION, SYSTEM)
+  isRead    Boolean  @default(false)
+  link      String? // กดแล้วให้ลิงก์ไปหน้าไหน เช่น "/profile/orders/123"
+  createdAt DateTime @default(now())
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // --- Enums สำหรับสถานะต่างๆ ---

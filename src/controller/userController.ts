@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma_config";
 import { Address, Users } from "../../generated/prisma/client";
-import auth from "../firebase/firebase_config";
+import { auth } from "../firebase/firebase_config";
 import { AuthenticatedRequest } from "src/interface/authRequestInterface";
 
 export const syncUser = async (req: Request, res: Response) => {
