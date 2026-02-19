@@ -76,15 +76,15 @@ app.listen(Number(port), "0.0.0.0", () => {
     if (isProduction) {
         console.log('🔄 Production detected: Starting Background Migration...');
         // ใช้ทางลัดระบุ path ไปที่ prisma ใน node_modules โดยตรงเพื่อความชัวร์
-        const migrate = exec('npx prisma migrate deploy', (error, stdout, stderr) => {
+        const migrate = exec('npx prisma db push', (error, stdout, stderr) => {
             if (error) {
-                console.error(`❌ Migration Error: ${error.message}`);
+                console.error(`❌ db push Error: ${error.message}`);
                 return;
             }
             if (stderr) {
-                console.log(`⚠️ Migration Stderr: ${stderr}`);
+                console.log(`⚠️ de push Stderr: ${stderr}`);
             }
-            console.log(`✅ Migration Success Output: \n${stdout}`);
+            console.log(`✅ de push Success Output: \n${stdout}`);
         });
 
         // เพิ่มการดักจับ Stream แบบ Real-time (จะได้เห็น Log ทันทีไม่ต้องรอจบ)
