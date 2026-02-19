@@ -7,6 +7,7 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY prisma ./prisma
+COPY prisma.config.ts ./
 
 RUN npm install
 RUN npx prisma generate
@@ -27,6 +28,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./
 
 # กำหนด Port (Render จะส่ง PORT มาให้ผ่าน Env)
 EXPOSE 10000
