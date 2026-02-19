@@ -32,5 +32,5 @@ COPY --from=builder /app/prisma ./prisma
 EXPOSE 10000
 
 # รัน migration และเริ่ม Server
-CMD npx prisma migrate deploy && node dist/index.js
+CMD ["sh", "-c","npx prisma migrate deploy && node dist/index.js"]
 
