@@ -35,5 +35,5 @@ COPY --from=builder /app/generated ./generated
 EXPOSE 10000
 
 # รัน migration และเริ่ม Server
-CMD ["sh", "-c","npx prisma migrate deploy && node dist/index.js"]
+CMD ["node","dist/index.js"]
 

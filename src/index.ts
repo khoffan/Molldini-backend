@@ -16,6 +16,7 @@ import mediaRouter from './routes/mediaRoute';
 import notiRoute from './routes/notiRoute';
 import webhookRouter from './webhook/omiseWebhook'
 import { initOrderCron } from "./cron/orderChecker";
+import { exec } from 'child_process';
 
 const port = process.env.PORT || 10000
 
@@ -67,6 +68,22 @@ app.use("/api/v1", invoiceRouter);
 app.use("/api/v1", notiRoute)
 app.use("/medias", mediaRouter);
 
+const isProduction = process.env.NODE_ENV === "production"
+
 app.listen(Number(port), "0.0.0.0", () => {
     console.log(`Server is running on port http://localhost:${port}`);
+    // ดักไว้: จะรัน Auto Migrate เฉพาะบน Production (เช่น Render) เท่านั้น
+    if (isProduction) {
+        console.log('🔄 Production detected: Starting Background Migration...');
+        exec('npx prisma migrate deploy', (error, stdout, stderr) => {
+            if (error) {
+                console.error(`❌ Migration Error: ${error.message}`);
+                return;
+            }
+            if (stderr) console.error(`⚠️ Migration Stderr: ${stderr}`);
+            console.log(`✅ Migration Success: ${stdout}`);
+        });
+    } else {
+        console.log('ℹ️ Local detected: Skipping Auto-Migration (Please run it manually if needed)');
+    }
 });
