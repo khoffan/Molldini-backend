@@ -1,8 +1,12 @@
 import { Router } from 'express';
-import { setOrder, getOrderById, updateOrderData, checkoutOrder } from '../controller/orderController';
-import { checkAuth } from '../middleware/authMiddleware';
+import { setOrder, getOrderById, updateOrderData, checkoutOrder, getOrderUser, getOrderMerchant } from '../controller/orderController';
+import { checkAuth, isMerchant } from '../middleware/authMiddleware';
 
 const router = Router();
+
+
+router.get("/orders/user", checkAuth, getOrderUser);
+router.get("/orders/merchant", checkAuth, isMerchant, getOrderMerchant);
 
 /**
  * @openapi

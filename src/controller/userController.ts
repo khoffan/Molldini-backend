@@ -72,6 +72,28 @@ export const syncUser = async (req: Request, res: Response) => {
     }
 }
 
+export const signOutUser = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const { fcmToken } = req.body;
+        const userId = req.user!.id;
+
+        if (fcmToken && userId) {
+            await prisma.userDevices.deleteMany({
+                where: {
+                    userId: userId,
+                    fcmToken: fcmToken
+                }
+            });
+        }
+
+        res.clearCookie("idtoken");
+        return res.status(200).json({ message: "User signed out successfully" });
+    } catch (e: any) {
+        console.log("User signed out failed");
+        return res.status(500).json({ message: e.message });
+    }
+}
+
 
 export const getAllUsers = async (req: Request, res: Response) => {
     try {
@@ -99,22 +121,22 @@ export const getUserById = async (req: AuthenticatedRequest, res: Response) => {
                         items: true
                     }
                 },
-                merchant: {
-                    include: {
-                        address: true,
-                        logoUrl: true
-                    }
-                },
-                orders: {
-                    include: {
-                        subOrders: {
-                            include: {
-                                orderItems: true
-                            }
-                        },
-                        invoice: true
-                    }
-                }
+                // merchant: {
+                //     include: {
+                //         address: true,
+                //         logoUrl: true
+                //     }
+                // },
+                // orders: {
+                //     include: {
+                //         subOrders: {
+                //             include: {
+                //                 orderItems: true
+                //             }
+                //         },
+                //         invoice: true
+                //     }
+                // }
             }
         });
         console.log("User fetched successfully");
@@ -141,22 +163,22 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
             include: {
                 image: true,
                 addresses: true,
-                merchant: {
-                    include: {
-                        address: true,
-                        logoUrl: true
-                    }
-                },
-                orders: {
-                    include: {
-                        subOrders: {
-                            include: {
-                                orderItems: true
-                            }
-                        },
-                        invoice: true
-                    }
-                }
+                // merchant: {
+                //     include: {
+                //         address: true,
+                //         logoUrl: true
+                //     }
+                // },
+                // orders: {
+                //     include: {
+                //         subOrders: {
+                //             include: {
+                //                 orderItems: true
+                //             }
+                //         },
+                //         invoice: true
+                //     }
+                // }
             }
         });
         console.log("User updated successfully");

@@ -169,6 +169,62 @@ export const setOrder = async (req: AuthenticatedRequest, res: Response) => {
     }
 }
 
+export const getOrderUser = async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!.id;
+    try {
+        const orders = await prisma.order.findMany({
+            where: {
+                userId: userId
+
+            },
+            include: {
+                subOrders: {
+                    include: {
+                        orderItems: true
+                    }
+                },
+                invoice: true,
+                receipt: true
+            }
+        });
+        console.log("Orders User fetched successfully");
+        return res.status(200).json(orders);
+    } catch (e: any) {
+        return res.status(500).json({ message: "Failed to fetch orders", error: e.message });
+    }
+}
+
+export const getOrderMerchant = async (req: AuthenticatedRequest, res: Response) => {
+    const merchant = req.merchant
+    console.log("🚀 ~ getOrderMerchant ~ merchant:", merchant)
+    try {
+        const orders = await prisma.order.findMany({
+            where: {
+                subOrders: {
+                    some: {
+                        merchantId: merchant!.id
+                    }
+                }
+            },
+            include: {
+                subOrders: {
+                    include: {
+                        orderItems: true
+                    }
+                },
+                invoice: true,
+                receipt: true
+            }
+        });
+        console.log("🚀 ~ getOrderMerchant ~ orders:", orders)
+
+        console.log("Orders Merchant fetched successfully");
+        return res.status(200).json(orders);
+    } catch (e: any) {
+        return res.status(500).json({ message: "Failed to fetch orders", error: e.message });
+    }
+}
+
 export const getOrderById = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const { id } = req.params;

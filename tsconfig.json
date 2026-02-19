@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",                                  /* เวอร์ชั่น JS ที่ต้องการ */
-    "module": "commonjs",                                /* ใช้ CommonJS ตามมาตรฐาน Node.js */
+    "module": "node16",                                /* ใช้ CommonJS ตามมาตรฐาน Node.js */
     "moduleResolution": "node16",                         /* วิธีการหา Library ใน node_modules */
     "outDir": "./dist",                                 /* โฟลเดอร์สำหรับไฟล์ที่คอมไพล์แล้ว */
     "rootDir": "./src",                                 /* โฟลเดอร์เก็บโค้ด TS */

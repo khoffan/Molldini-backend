@@ -5,7 +5,7 @@ import prisma from '../lib/prisma_config';
 
 export const initOrderCron = () => {
     console.log("🚀 Order Checker Cron Job Initialized");
-    cron.schedule('*/1 * * * *', async () => {
+    cron.schedule('*/20 * * * *', async () => {
         const expiredTime = new Date(Date.now() - 15 * 60 * 1000).toISOString();
 
         const expriedOrder = await prisma.order.findMany({

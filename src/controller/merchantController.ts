@@ -18,7 +18,7 @@ export const addMerchant = async (req: AuthenticatedRequest, res: Response) => {
                         create: address // ข้อมูล address ก้อน Object จาก req.body
                     }
                 },
-                include: { address: true }
+                include: { address: true, logoUrl: true }
             });
 
             await tx.users.update({
@@ -41,11 +41,17 @@ export const getAllMerchants = async (req: Request, res: Response) => {
             include: {
                 products: {
                     include: {
-                        variants: true,
-                        category: true
+                        variants: {
+                            include: {
+                                images: true
+                            }
+                        },
+                        category: true,
+                        images: true
                     }
                 },
                 address: true,
+                logoUrl: true
             }
         });
         console.log("Merchants fetched successfully");
@@ -66,11 +72,17 @@ export const getMerchantById = async (req: AuthenticatedRequest, res: Response) 
             include: {
                 products: {
                     include: {
-                        variants: true,
-                        category: true
+                        variants: {
+                            include: {
+                                images: true
+                            }
+                        },
+                        category: true,
+                        images: true
                     }
                 },
                 address: true,
+                logoUrl: true
             }
         });
         if (!merchant) {

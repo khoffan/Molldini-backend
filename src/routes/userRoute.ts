@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { syncUser, getAllUsers, getUserById, updateUser, deleteUser, updateAddressUser, updateFCMToken } from "../controller/userController";
+import { syncUser, getAllUsers, getUserById, updateUser, deleteUser, updateAddressUser, updateFCMToken, signOutUser } from "../controller/userController";
 import { checkAuth } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -35,6 +35,20 @@ router.post("/users/me", syncUser);
  *                 $ref: '#/components/schemas/User'
  */
 router.get("/users", getAllUsers);
+
+/**
+ * @openapi
+ * /api/v1/users/logout:
+ *   post:
+ *     summary: ออกจากระบบ
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: ออกจากระบบสำเร็จ
+ */
+router.post("/users/logout", checkAuth, signOutUser)
 
 /**
  * @openapi
