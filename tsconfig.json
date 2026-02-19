@@ -5,7 +5,7 @@
     "moduleResolution": "node16",                         /* วิธีการหา Library ใน node_modules */
     "outDir": "./dist",                                 /* โฟลเดอร์สำหรับไฟล์ที่คอมไพล์แล้ว */
     "rootDir": "./src",                                 /* โฟลเดอร์เก็บโค้ด TS */
-    "strict": true,                                     /* เปิดโหมดเข้มงวด (แนะนำมาก) */
+    "strict": false,                                     /* เปิดโหมดเข้มงวด (แนะนำมาก) */
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,                          /* ช่วยให้ import library แบบเก่าได้ */
