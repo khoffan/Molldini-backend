@@ -65,6 +65,6 @@ app.use("/api/v1", invoiceRouter);
 app.use("/api/v1", notiRoute)
 app.use("/medias", mediaRouter);
 
-app.listen(process.env.PORT || 3000, () => {
+app.listen(process.env.PORT || 10000, () => {
     console.log(`Server is running on port http://localhost:${process.env.PORT}`);
 });
