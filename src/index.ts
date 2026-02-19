@@ -17,6 +17,8 @@ import notiRoute from './routes/notiRoute';
 import webhookRouter from './webhook/omiseWebhook'
 import { initOrderCron } from "./cron/orderChecker";
 
+const port = process.env.PORT || 10000
+
 
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -65,6 +67,6 @@ app.use("/api/v1", invoiceRouter);
 app.use("/api/v1", notiRoute)
 app.use("/medias", mediaRouter);
 
-app.listen(process.env.PORT || 10000, () => {
-    console.log(`Server is running on port http://localhost:${process.env.PORT}`);
+app.listen(Number(port), "0.0.0.0", () => {
+    console.log(`Server is running on port http://localhost:${port}`);
 });
