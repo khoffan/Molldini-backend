@@ -1,9 +1,12 @@
 import { initializeApp, cert, getApp, getApps, App } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getMessaging, Messaging } from 'firebase-admin/messaging'
+import dotenv from 'dotenv';
+dotenv.config();
 
 // 💡 วิธีโหลด JSON แบบ TypeScript (ต้องตั้งค่าใน tsconfig.json ด้วย)
-import serviceAccount from '../../serviceAccountKey.json';
+
+const serviceAccount = JSON.parse(process.env.SERVICE_FB!)
 
 const firebaseAdminConfig = {
   credential: cert(serviceAccount as any), // หลบ Type เช็คของ JSON เล็กน้อย
