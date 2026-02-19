@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
 
-RUN npm ci --omit=dev
+RUN npm install
 RUN npx prisma generate
 
 RUN npm run build
