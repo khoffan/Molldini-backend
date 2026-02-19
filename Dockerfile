@@ -1,5 +1,5 @@
 # stage#1 build
-FROM node:22-slim as builder
+FROM node:22-slim AS builder
 
 RUN apt-get update && apt-get install -y openssl
 
