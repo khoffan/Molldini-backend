@@ -6,7 +6,17 @@ dotenv.config();
 
 // 💡 วิธีโหลด JSON แบบ TypeScript (ต้องตั้งค่าใน tsconfig.json ด้วย)
 
-const serviceAccount = JSON.parse(process.env.SERVICE_FB!)
+let serviceEnv = process.env.SERVICE_FB
+
+if (serviceEnv) {
+  serviceEnv = serviceEnv.trim().replace(/^['"]|['"]$/g, '');
+}
+
+const serviceAccount = JSON.parse(serviceEnv!)
+
+if (serviceAccount.private_key) {
+  serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+}
 
 const firebaseAdminConfig = {
   credential: cert(serviceAccount as any), // หลบ Type เช็คของ JSON เล็กน้อย

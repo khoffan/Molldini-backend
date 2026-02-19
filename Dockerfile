@@ -29,6 +29,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./
+COPY --from=builder /app/generated ./generated
 
 # กำหนด Port (Render จะส่ง PORT มาให้ผ่าน Env)
 EXPOSE 10000
