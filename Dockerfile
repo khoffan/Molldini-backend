@@ -1,5 +1,5 @@
 # stage#1 build
-FROM node:18-slim as builder
+FROM node:22-slim as builder
 
 RUN apt-get update && apt-get install -y openssl
 
@@ -14,7 +14,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Stage 2: Run
-FROM node:18-slim
+FROM node:22-slim
 
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
