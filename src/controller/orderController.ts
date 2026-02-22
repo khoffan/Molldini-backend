@@ -11,7 +11,7 @@ const createCharge = async (source: string, amount: number, orderId: string | nu
         omise.charges.create({
             amount: (amount * 100),
             currency: "THB",
-            return_uri: `https://supercrowned-unhortative-sun.ngrok-free.dev/success/${orderId}`,
+            return_uri: `${process.env.FRONTEND_URL}/success/${orderId}`,
             metadata: {
                 orderId
             },
