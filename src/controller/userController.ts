@@ -6,6 +6,7 @@ import { AuthenticatedRequest } from "src/interface/authRequestInterface";
 import dotenv from "dotenv";
 dotenv.config();
 
+
 export const syncUser = async (req: Request, res: Response) => {
     const authHeader = req.headers.authorization;
     const idToken = authHeader?.split("Bearer ")[1];
@@ -64,7 +65,7 @@ export const syncUser = async (req: Request, res: Response) => {
         res.cookie("idtoken", idToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
+            sameSite: "none",
             maxAge: 24 * 60 * 60 * 1000,
         });
         return res.status(200).json(user);
