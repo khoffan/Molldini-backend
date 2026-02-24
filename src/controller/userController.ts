@@ -3,6 +3,8 @@ import prisma from "../lib/prisma_config";
 import { Address, Users } from "../../generated/prisma/client";
 import { auth } from "../firebase/firebase_config";
 import { AuthenticatedRequest } from "src/interface/authRequestInterface";
+import dotenv from "dotenv";
+dotenv.config();
 
 export const syncUser = async (req: Request, res: Response) => {
     const authHeader = req.headers.authorization;
