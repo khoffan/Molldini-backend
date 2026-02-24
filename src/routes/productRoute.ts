@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { getAllProducts, addProduct, getProductById, getMerchantProducts, updateProductById, searchingProducts } from "../controller/productController";
+import { getAllProducts, addProduct, getProductById, getMerchantProducts, updateProductById, searchingProducts, addProductImportFIle } from "../controller/productController";
 import { checkAuth, isMerchant } from "../middleware/authMiddleware";
+import { upload } from "../middleware/upload_confing";
 const router = Router();
 
 /**
@@ -82,6 +83,9 @@ router.get("/products/merchant", checkAuth, isMerchant, getMerchantProducts);
  *         description: Forbidden
  */
 router.post("/products", checkAuth, isMerchant, addProduct);
+
+
+router.post("/products/import-csv", upload.single("file"), checkAuth, isMerchant, addProductImportFIle)
 
 /**
  * @openapi
