@@ -19,10 +19,21 @@ const storage = multer.diskStorage({
 
 export const upload = multer({
     storage, fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'text/csv') {
+        console.log("file", file)
+        console.log("file", file.mimetype)
+
+        // เพิ่ม mimetype ที่เป็นไปได้ของ CSV ทั้งหมด
+        const allowedTypes = [
+            'text/csv',
+            'application/vnd.ms-excel',
+            'text/plain', // บางเครื่องมอง CSV เป็น plain text
+            'application/csv'
+        ];
+
+        if (allowedTypes.includes(file.mimetype) || file.originalname.endsWith('.csv')) {
             cb(null, true);
         } else {
-            cb(new Error('Only CSV files are allowed!'));
+            cb(new Error('Invalid file type. Only CSV is allowed!'));
         }
     }
 });

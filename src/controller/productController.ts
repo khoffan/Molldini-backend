@@ -131,42 +131,72 @@ export const addProductImportFIle = async (req: AuthenticatedRequest, res: Respo
                     categoryMap[catName] = cat.id; // เก็บชื่อคู่กับ ID ไว้ใน Map
                 }
 
-                const importProcess = await prisma.$transaction(
-                    groupData.map((p) => prisma.products.create({
-                        data: {
-                            title: p.title,
-                            description: p.description,
-                            merchantId: merchantId,
-                            categoryId: categoryMap[p.categoryName],
-                            images: {
-                                create: p.images?.map((img: any) => {
-                                    return {
-                                        url: img,
-                                        isPrimary: img === p.images[0]
-                                    }
-                                })
-                            },
-                            variants: {
-                                create: p.variants.map((v: any) => {
-                                    return {
 
-                                        variantName: v.variantName,
-                                        price: v.price,
-                                        stock: v.stock,
-                                        sku: v.sku
-                                    }
-                                })
+                const importProcess = await prisma.$transaction(async (tx) => {
+                    const outcomes = [];
+                    for (const p of groupData) {
+                        try {
+                            const existing = await tx.products.findFirst({
+                                where: { title: p.title, merchantId: merchantId }
+                            });
+
+                            if (existing) {
+                                outcomes.push({ status: 'duplicate', title: p.title });
+                                continue;
                             }
+
+                            const product = await tx.products.create({
+                                data: {
+                                    title: p.title,
+                                    description: p.description,
+                                    merchantId: merchantId,
+                                    categoryId: categoryMap[p.categoryName],
+                                    images: {
+                                        create: p.images?.map((img: any) => {
+                                            return {
+                                                url: img,
+                                                isPrimary: img === p.images[0]
+                                            }
+                                        })
+                                    },
+                                    variants: {
+                                        create: p.variants.map((v: any) => {
+                                            return {
+
+                                                variantName: v.variantName,
+                                                price: v.price,
+                                                stock: v.stock,
+                                                sku: v.sku
+                                            }
+                                        })
+                                    }
+                                }
+                            })
+                            outcomes.push({ status: 'success', id: product.id });
+                        } catch (e: any) {
+                            // ตรวจสอบว่า Error คือ Unique Constraint ของ Prisma (P2002)
+                            if (e.code === 'P2002') {
+                                outcomes.push({ status: 'skipped', title: p.title });
+                                continue; // ข้ามตัวนี้แล้วทำตัวต่อไป
+                            }
+                            throw e; // ถ้าเป็น error อื่นให้ rollback ทั้งหมด
                         }
-                    }))
-                )
+                    }
+                    return outcomes
+                })
+
+                // เช็คว่าถ้ามีแต่ตัวที่ซ้ำ (ไม่มีตัวไหน success เลย) ให้ส่ง 204
+                const hasSuccess = importProcess.some(r => r.status === 'success');
+                if (!hasSuccess) {
+                    return res.status(204).end();
+                }
 
                 // ส่งกลับไปให้ Frontend ดูผลลัพธ์ หรือส่งต่อไปยัง Stage Mapping
                 res.status(200).json({
                     message: 'File uploaded and parsed successfully',
                     fileName: req.file?.filename,
                     rowCount: results.length,
-                    dataImport: importProcess.length
+                    dataImport: importProcess
                 });
             })
             .on('error', (error) => {

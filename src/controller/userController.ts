@@ -65,7 +65,7 @@ export const syncUser = async (req: Request, res: Response) => {
         res.cookie("idtoken", idToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "none",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
             maxAge: 24 * 60 * 60 * 1000,
         });
         return res.status(200).json(user);
