@@ -45,6 +45,7 @@
     "nodemon": "^3.1.11",
     "omise": "^1.1.0",
     "pg": "^8.18.0",
+    "redis": "^5.11.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   }

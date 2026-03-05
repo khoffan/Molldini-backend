@@ -120,7 +120,19 @@ model Media {
   variantId  String?
   variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
+  shippingId String?   @unique
+  shipping   Shipping? @relation(fields: [shippingId], references: [id], onDelete: Cascade)
+
+  paymentId String?  @unique
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
   @@unique([productId, variantId, merchantId, userId])
+  @@index([userId])
+  @@index([merchantId])
+  @@index([productId])
+  @@index([variantId])
+  @@index([shippingId])
+  @@index([paymentId])
 }
 
 model Carts {
@@ -282,6 +294,48 @@ model Notification {
   user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model Shipping {
+  id                    String   @id @default(uuid())
+  name                  String
+  provider              String   @unique
+  description           String
+  price                 Float
+  estimatedDays         String
+  minOrderAmount        Int      @default(0)
+  freeShippingThreshold Int?
+  sortOrder             Int      @default(0)
+  isActive              Boolean  @default(true)
+  image                 Media?
+  createAt              DateTime @default(now())
+  updateAt              DateTime @updatedAt
+
+  @@index([id])
+}
+
+model Payment {
+  id            String         @id @default(uuid())
+  label         String
+  icon          Media?
+  method        String         @unique
+  isActive      Boolean        @default(true)
+  sortOrder     Int            @default(0)
+  paymentChilds PaymentChild[]
+  createAt      DateTime       @default(now())
+  updateAt      DateTime       @updatedAt
+}
+
+model PaymentChild {
+  id        String   @id @default(uuid())
+  paymentId String   @unique
+  payment   Payment  @relation(fields: [paymentId], references: [id])
+  label     String
+  method    String   @unique
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createAt  DateTime @default(now())
+  updateAt  DateTime @updatedAt
 }
 
 // --- Enums สำหรับสถานะต่างๆ ---

@@ -13,7 +13,9 @@ const COMMON_COLUMNS = {
     variantName: ['variant', 'variant_name', 'ชื่อรุ่น', 'แบบ', 'option'],
     price: ['price', 'ราคา', 'unit_price', 'cost'],
     stock: ['stock', 'inventory', 'quantity', 'qty', 'จำนวน'],
-    sku: ['sku', 'code', 'product_code', 'รหัสสินค้า']
+    sku: ['sku', 'code', 'product_code', 'รหัสสินค้า'],
+    pImage: ['product_images', 'product_image', 'image', 'รูปภาพ'],
+    vImage: ['variant_images', 'variant_image', 'image', 'รูปภาพ'],
 };
 
 const mapAndGroupProducts = (rawData: any[]) => {
@@ -29,10 +31,12 @@ const mapAndGroupProducts = (rawData: any[]) => {
         title: findKey('title'),
         desc: findKey('description'),
         cat: findKey('category'),
+        image: findKey('pImage'),
         vName: findKey('variantName'),
         price: findKey('price'),
         stock: findKey('stock'),
-        sku: findKey('sku')
+        sku: findKey('sku'),
+        vImage: findKey('vImage')
     };
 
     return rawData.reduce((acc: any[], curr: any) => {
@@ -41,11 +45,22 @@ const mapAndGroupProducts = (rawData: any[]) => {
 
         let product = acc.find(p => p.title === title);
 
+        let pImage = [];
+        if (curr[col.image || '']) {
+            pImage.push(curr[col.image || '']);
+        }
+
+        let vImage = [];
+        if (curr[col.vImage || '']) {
+            vImage.push(curr[col.vImage || '']);
+        }
+
         const variantObj = {
             variantName: curr[col.vName || ''] || 'Default',
             price: parseFloat(curr[col.price || '']) || 0,
             stock: parseInt(curr[col.stock || '']) || 0,
-            sku: curr[col.sku || ''] || null
+            sku: curr[col.sku || ''] || null,
+            images: vImage || null
         };
 
         if (product) {
@@ -55,44 +70,14 @@ const mapAndGroupProducts = (rawData: any[]) => {
                 title: title,
                 description: curr[col.desc || ''] || '',
                 categoryName: curr[col.cat || ''] || 'General', // เดี๋ยวจะเอาไปหา CategoryId ต่อ
-                variants: [variantObj]
+                variants: [variantObj],
+                images: pImage || null
             });
         }
 
         return acc;
     }, []);
 };
-
-
-const groupProducts = (rawData: any[]) => {
-    return rawData.reduce((acc: any[], curr: any) => {
-        // 1. หาว่าใน acc (ตัวที่สะสมไว้) มี product_name นี้หรือยัง
-        const existingProduct = acc.find(p => p.product_name === curr.product_name);
-
-        const variantData = {
-            variant_name: curr.variant_name,
-            sku: curr.sku,
-            price: Number(curr.price), // แปลงเป็นตัวเลข
-            stock: Number(curr.stock)  // แปลงเป็นตัวเลข
-        };
-
-        if (existingProduct) {
-            // 2. ถ้ามีแล้ว ให้ push variant เข้าไปใน array เดิม
-            existingProduct.variants.push(variantData);
-        } else {
-            // 3. ถ้ายังไม่มี ให้สร้าง object product ใหม่พร้อม variant ตัวแรก
-            acc.push({
-                product_name: curr.product_name,
-                description: curr.description,
-                category: curr.category,
-                variants: [variantData]
-            });
-        }
-
-        return acc;
-    }, []);
-};
-
 
 export const addProductImportFIle = async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -113,11 +98,17 @@ export const addProductImportFIle = async (req: AuthenticatedRequest, res: Respo
                 // console.log('Raw Data from CSV:', results);
                 const groupData = mapAndGroupProducts(results);
                 const merchantId = merchant.id;
-                console.log('Group Data:', groupData);
+
 
                 // 1. ดึงชื่อ Category ทั้งหมดจากไฟล์ (Unique Names)
                 const uniqueCategoryNames = [...new Set(groupData.map((p: any) => p.categoryName))] as string[];
 
+                // return res.status(200).json({
+                //     message: "Group Data", data: {
+                //         groupData,
+                //         uniqueCategoryNames
+                //     }
+                // });
                 // 2. ใช้ connectOrCreate หรือจัดการสร้างก่อนเพื่อให้ได้ ID
                 // วิธีที่เร็วที่สุดคือการวนลูปสร้าง (หรือหา) ทีละตัว
                 const categoryMap: Record<string, string> = {};
@@ -155,18 +146,25 @@ export const addProductImportFIle = async (req: AuthenticatedRequest, res: Respo
                                         create: p.images?.map((img: any) => {
                                             return {
                                                 url: img,
-                                                isPrimary: img === p.images[0]
+                                                path: img,
                                             }
                                         })
                                     },
                                     variants: {
                                         create: p.variants.map((v: any) => {
                                             return {
-
                                                 variantName: v.variantName,
                                                 price: v.price,
                                                 stock: v.stock,
-                                                sku: v.sku
+                                                sku: v.sku,
+                                                images: {
+                                                    create: v.images?.map((img: any) => {
+                                                        return {
+                                                            url: img,
+                                                            path: img,
+                                                        }
+                                                    })
+                                                }
                                             }
                                         })
                                     }

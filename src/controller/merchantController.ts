@@ -9,6 +9,17 @@ export const addMerchant = async (req: AuthenticatedRequest, res: Response) => {
     const { address, ...merchantData } = req.body;
 
     try {
+        const existingMerchnat = await prisma.merchant.findUnique({
+            where: {
+                name: merchantData.name as string
+            }
+        });
+
+        if (existingMerchnat) {
+            return res.status(400).json({ message: "Merchant already exists" });
+        }
+
+
         const result = await prisma.$transaction(async (tx) => {
             const newMerchant = await tx.merchant.create({
                 data: {

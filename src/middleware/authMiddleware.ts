@@ -62,3 +62,26 @@ export const isMerchant = async (req: AuthenticatedRequest, res: Response, next:
         res.status(403).json({ message: 'Forbidden: Merchant access required' });
     }
 };
+
+export const isAdmin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (req.user && req.user.role === Role.ADMIN) {
+        try {
+            const admin = await prisma.users.findUnique({
+                where: { id: req.user.id }
+            });
+            if (!admin) {
+                return res.status(403).json({
+                    message: "Forbidden: Admin not found"
+                })
+            }
+            req.admin = admin;
+            next();
+        } catch (e: any) {
+            console.error(e);
+            return res.status(500).json({ message: e.message });
+        }
+
+    } else {
+        res.status(403).json({ message: 'Forbidden: Admin access required' });
+    }
+};

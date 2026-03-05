@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma_config";
-import { Address, Users } from "../../generated/prisma/client";
+import { Address, Role } from "../../generated/prisma/client";
 import { auth } from "../firebase/firebase_config";
 import { AuthenticatedRequest } from "src/interface/authRequestInterface";
 import dotenv from "dotenv";
@@ -8,8 +8,11 @@ dotenv.config();
 
 
 export const syncUser = async (req: Request, res: Response) => {
+    console.log("syncUser");
     const authHeader = req.headers.authorization;
     const idToken = authHeader?.split("Bearer ")[1];
+
+    const { role, fullname } = req.body;
 
     if (!idToken) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -18,56 +21,50 @@ export const syncUser = async (req: Request, res: Response) => {
     try {
         const decodeToken = await auth.verifyIdToken(idToken);
         const { email, name, picture, uid, email_verified, phone_number, firebase } = decodeToken;
+        console.log(decodeToken);
 
-        // 2. ใช้ Upsert: ถ้าไม่มี Email นี้ให้สร้างใหม่ ถ้ามีแล้วให้อัปเดตข้อมูลล่าสุด
-        const user = await prisma.users.upsert({
-            where: { email: email },
-            update: {
-                name: name || "",
-                image: picture ? {
-                    upsert: {
+        let user = await prisma.users.findUnique({
+            where: { email: email }, include: { image: true }
+        })
+
+        const cleanName = (name?.trim() || fullname?.trim());
+        if (user) {
+            user = await prisma.users.update({
+                where: { email: email },
+                data: {
+                    emailVerified: email_verified,
+                    lastLogin: new Date(), // อัปเดตเวลาล็อกอินล่าสุด
+                },
+                include: {
+                    image: true
+                }
+            });
+            console.log("User updated via sync");
+        } else {
+            user = await prisma.users.create({
+                data: {
+                    id: uid, // บันทึก UID ที่ได้จาก Firebase
+                    email: email || "",
+                    name: cleanName ? cleanName : "New User",
+                    emailVerified: email_verified || false,
+                    phoneNumber: phone_number || null,
+                    provider: firebase.sign_in_provider,
+                    role: role || Role.USER,
+                    image: picture ? {
                         create: {
                             url: picture,
-                            path: `users/${uid}/profile.jpg`, // กำหนด path จำลองไว้
+                            path: `users/${uid}/profile.jpg`,
                             fileName: "google_profile",
-                        },
-                        update: {
-                            url: picture,
                         }
-                    }
-                } : undefined,
-                emailVerified: email_verified,
-                lastLogin: new Date(), // อัปเดตเวลาล็อกอินล่าสุด
-            },
-            create: {
-                id: uid, // บันทึก UID ที่ได้จาก Firebase
-                email: email || "",
-                name: name || "New User",
-                emailVerified: email_verified || false,
-                phoneNumber: phone_number || null,
-                provider: firebase.sign_in_provider,
-                role: "USER",
-                image: picture ? {
-                    create: {
-                        url: picture,
-                        path: `users/${uid}/profile.jpg`,
-                        fileName: "google_profile",
-                    }
-                } : undefined
-            },
-            include: {
-                image: true
-            }
-        });
-
-        console.log("Users fetched successfully");
-
-        res.cookie("idtoken", idToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            maxAge: 24 * 60 * 60 * 1000,
-        });
+                    } : undefined
+                },
+                include: {
+                    image: true
+                }
+            });
+            console.log("New user created via sync");
+        }
+        console.log(user);
         return res.status(200).json(user);
     } catch (e: any) {
         console.log("Users fetched failed");
@@ -78,7 +75,7 @@ export const syncUser = async (req: Request, res: Response) => {
 export const signOutUser = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const { fcmToken } = req.body;
-        const userId = req.user!.id;
+        const userId = req.user.id;
 
         if (fcmToken && userId) {
             await prisma.userDevices.deleteMany({
