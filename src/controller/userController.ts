@@ -64,7 +64,6 @@ export const syncUser = async (req: Request, res: Response) => {
             });
             console.log("New user created via sync");
         }
-        console.log(user);
         return res.status(200).json(user);
     } catch (e: any) {
         console.log("Users fetched failed");

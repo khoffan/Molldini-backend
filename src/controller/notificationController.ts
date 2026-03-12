@@ -77,3 +77,20 @@ export const fetchNotification = async (req: AuthenticatedRequest, res: Response
         return res.status(500).json({ message: e.message });
     }
 }
+
+export const readNotification = async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    try {
+        await prisma.notification.update({
+            where: {
+                id: id as string
+            },
+            data: {
+                isRead: true
+            },
+        });
+        return res.status(200).json({ message: "Notification deleted successfully" });
+    } catch (e: any) {
+        return res.status(500).json({ message: e.message });
+    }
+}

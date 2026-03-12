@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addMerchant, getAllMerchants, getMerchantById } from "../controller/merchantController";
+import { addMerchant, getAllMerchants, getMerchantById, updateMerchant } from "../controller/merchantController";
 import { checkAuth, isMerchant } from "../middleware/authMiddleware";
 const router = Router();
 
@@ -50,5 +50,7 @@ router.get("/merchants", checkAuth, isMerchant, getAllMerchants);
  *         description: Merchant not found
  */
 router.get("/merchants/me", checkAuth, isMerchant, getMerchantById);
+
+router.patch("/merchants/update", checkAuth, isMerchant, updateMerchant);
 
 export default router;

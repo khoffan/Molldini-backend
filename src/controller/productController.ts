@@ -5,6 +5,8 @@ import fs from 'fs';
 import path from 'path';
 import { Products, ProductVariant, Merchant } from "../../generated/prisma/client";
 import { AuthenticatedRequest } from "../interface/authRequestInterface";
+import { getCache, setCache } from "../utils/redis_utils";
+import { PRODUCT_KEYS, invalidateProductCache } from "../cache/cache_product_key";
 
 const COMMON_COLUMNS = {
     title: ['product_name', 'title', 'ชื่อสินค้า', 'item', 'name'],
@@ -183,6 +185,9 @@ export const addProductImportFIle = async (req: AuthenticatedRequest, res: Respo
                     return outcomes
                 })
 
+
+                await invalidateProductCache()
+
                 // เช็คว่าถ้ามีแต่ตัวที่ซ้ำ (ไม่มีตัวไหน success เลย) ให้ส่ง 204
                 const hasSuccess = importProcess.some(r => r.status === 'success');
                 if (!hasSuccess) {
@@ -258,6 +263,8 @@ export const addProduct = async (req: AuthenticatedRequest, res: Response) => {
             }
         });
         console.log("Product added successfully");
+
+
         return res.status(201).json(newProduct);
     } catch (e: any) {
         console.log("Product added failed");
@@ -269,6 +276,9 @@ export const addProduct = async (req: AuthenticatedRequest, res: Response) => {
 export const getMerchantProducts = async (req: AuthenticatedRequest, res: Response) => {
     const merchant = req.merchant as Merchant;
     try {
+        const cached = await getCache(PRODUCT_KEYS.MERCHANT(merchant.id));
+        if (cached) return res.status(200).json(cached);
+
         const products = await prisma.products.findMany({
             where: {
                 merchantId: merchant.id
@@ -282,6 +292,7 @@ export const getMerchantProducts = async (req: AuthenticatedRequest, res: Respon
                 }
             }
         });
+        await setCache(PRODUCT_KEYS.MERCHANT(merchant.id), products, 600);
         console.log("Products fetched successfully");
         return res.status(200).json(products);
     } catch (e: any) {
@@ -292,6 +303,9 @@ export const getMerchantProducts = async (req: AuthenticatedRequest, res: Respon
 
 export const getAllProducts = async (req: Request, res: Response) => {
     try {
+        const cached = await getCache(PRODUCT_KEYS.ALL);
+        if (cached) return res.status(200).json(cached);
+
         const products = await prisma.products.findMany({
             include: {
                 images: true,
@@ -313,6 +327,7 @@ export const getAllProducts = async (req: Request, res: Response) => {
             }
         });
         console.log("Products fetched successfully");
+        await setCache(PRODUCT_KEYS.ALL, products, 600);
         return res.status(200).json(products);
     } catch (e: any) {
         console.log("Products fetched failed error", e.message);
@@ -379,9 +394,9 @@ export const updateProductById = async (req: AuthenticatedRequest, res: Response
         const { title, description, categoryId, variants, images } = req.body;
 
         const variantToUpdate = variants.filter((v: any) => v.id);
-        console.log("🚀 ~ updateProductById ~ variantToUpdate:", variantToUpdate)
+
         const variantToCreate = variants.filter((v: any) => !v.id);
-        console.log("🚀 ~ updateProductById ~ variantToCreate:", variantToCreate)
+
 
         const existingVariants = variantToUpdate.map((v: any) => v.id)
         const result = await prisma.products.update({
@@ -456,6 +471,8 @@ export const updateProductById = async (req: AuthenticatedRequest, res: Response
                 }
             }
         });
+
+        await invalidateProductCache(id as string);
 
         console.log("Product updated successfully");
         return res.status(200).json({
