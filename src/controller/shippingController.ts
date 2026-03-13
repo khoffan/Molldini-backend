@@ -123,7 +123,7 @@ export const updateShipping = async (req: AuthenticatedRequest, res: Response) =
 }
 
 
-export const deleteShipping = async (req: AuthenticatedRequest, res: Response) => {
+export const deleteSoftShipping = async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
     try {
         await prisma.shipping.update({
@@ -134,7 +134,21 @@ export const deleteShipping = async (req: AuthenticatedRequest, res: Response) =
                 isActive: false,
             },
         });
-        return res.status(200).json({ message: "Payment deleted successfully" });
+        return res.status(204).json({ message: "Shipping de-activated successfully" });
+    } catch (e: any) {
+        return res.status(500).json({ message: e.message });
+    }
+}
+
+export const deleteShipping = async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    try {
+        await prisma.shipping.delete({
+            where: {
+                id: id as string
+            },
+        });
+        return res.status(204).json({ message: "Shipping deleted successfully" });
     } catch (e: any) {
         return res.status(500).json({ message: e.message });
     }

@@ -159,7 +159,7 @@ export const togglePaymentStatus = async (req: AuthenticatedRequest, res: Respon
 }
 
 
-export const deletePayment = async (req: AuthenticatedRequest, res: Response) => {
+export const deleteSoftPayment = async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
     try {
         await prisma.payment.update({
@@ -176,7 +176,21 @@ export const deletePayment = async (req: AuthenticatedRequest, res: Response) =>
                 }
             },
         });
-        return res.status(200).json({ message: "Payment deleted successfully" });
+        return res.status(204).json({ message: "Payment de-activated successfully" });
+    } catch (e: any) {
+        return res.status(500).json({ message: e.message });
+    }
+}
+
+export const deletePayment = async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    try {
+        await prisma.payment.delete({
+            where: {
+                id: id as string
+            },
+        });
+        return res.status(204).json({ message: "Payment deleted successfully" });
     } catch (e: any) {
         return res.status(500).json({ message: e.message });
     }
