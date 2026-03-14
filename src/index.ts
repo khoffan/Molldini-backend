@@ -115,10 +115,9 @@ if (app._router && app._router.stack) {
 const isProduction = process.env.NODE_ENV === "production"
 
 app.listen(Number(port), "0.0.0.0", async () => {
-    if (!isProduction) {
-        console.log('Connecting to Redis...');
-        await client.connect();
-    }
+    console.log('Connecting to Redis...');
+    // connection redis
+    await client.connect();
     console.log(`Server is running on port http://localhost:${port}`);
     // ดักไว้: จะรัน Auto Migrate เฉพาะบน Production (เช่น Render) เท่านั้น
     if (isProduction) {
