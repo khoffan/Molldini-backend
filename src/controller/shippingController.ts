@@ -11,7 +11,10 @@ interface createShippingReq {
     estimatedDays: string;
     minOrderAmount: number;
     freeShippingThreshold: number | undefined;
-    image: string
+    image: {
+        url: string,
+        path: string
+    }
 }
 
 
@@ -38,8 +41,8 @@ export const createShippingIntent = async (req: AuthenticatedRequest, res: Respo
                 freeShippingThreshold,
                 image: image ? {
                     create: {
-                        url: image,
-                        path: image
+                        url: image.url,
+                        path: image.path
                     }
                 } : undefined,
                 sortOrder: nextSortOrder
@@ -105,8 +108,8 @@ export const updateShipping = async (req: AuthenticatedRequest, res: Response) =
                 freeShippingThreshold,
                 image: image ? {
                     create: {
-                        url: image,
-                        path: image
+                        url: image.url,
+                        path: image.path
                     }
                 } : undefined,
             },

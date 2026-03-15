@@ -131,6 +131,10 @@ export const updatePaymentIntent = async (req: AuthenticatedRequest, res: Respon
                     }
                 }
             },
+            include: {
+                icon: true,
+                paymentChilds: true
+            }
         });
         return res.status(200).json(paymentIntent);
     } catch (e: any) {

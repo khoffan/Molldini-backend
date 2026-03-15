@@ -296,7 +296,12 @@ export const updateOrderData = async (req: AuthenticatedRequest, res: Response) 
 export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const { orderId } = req.params;
-        const { source } = req.body;
+        const { source, shippingId } = req.body;
+        const shippingMethod = await prisma.shipping.findUnique({
+            where: {
+                id: shippingId as string
+            }
+        });
         const orderData = await prisma.order.findUnique({
             where: {
                 id: orderId as string
@@ -311,11 +316,13 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
                 invoice: true
             }
         });
-        const totalPrice: number = orderData?.totalPrice ?? 0;
-        const amount = totalPrice;
+        const amount = orderData?.totalPrice || 0;
+        const isFree = shippingMethod?.freeShippingThreshold && amount >= shippingMethod.freeShippingThreshold;
+        const shippingCost = isFree ? 0 : shippingMethod?.price || 0;
+        const totalPrice: number = amount + shippingCost;
 
         const orderDataId = orderData?.id || null;
-        const omiseRes = await createCharge(source, amount, orderDataId);
+        const omiseRes = await createCharge(source, totalPrice, orderDataId);
 
         await prisma.$transaction(async (tx) => {
             await tx.order.update({
@@ -327,22 +334,42 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
                 }
             })
         })
+        const paymentInfoRes = handlePaymentResponse(omiseRes);
 
-
-        let redirectUrl = null;
-        let code = null;
-        if (omiseRes.source.type !== "promptpay") {
-            redirectUrl = omiseRes.authorize_uri
-        } else {
-            code = omiseRes.source.scannable_code
-        }
         return res.status(200).json({
             message: "Order checked out successfully",
-            redirectUrl: redirectUrl,
-            code: code
+            ...paymentInfoRes
         });
     } catch (e: any) {
         console.log("Checkout order failed", e.message);
         return res.status(500).json({ message: "Failed to checkout order", error: e.message });
     }
 }
+
+
+
+// แยก Response Logic ออกมา
+const handlePaymentResponse = (omiseRes: any) => {
+    // กรณี PromptPay
+    if (omiseRes.source?.type === "promptpay") {
+        return {
+            paymentType: "qr_code",
+            code: omiseRes.source.scannable_code?.image?.download_uri, // ดึง URL รูปโดยตรง
+            expiresAt: omiseRes.source.scannable_code?.expires_at
+        };
+    }
+
+    // กรณี Credit Card หรืออื่นๆ ที่ต้อง Redirect (เช่น 3DS)
+    if (omiseRes.authorize_uri) {
+        return {
+            paymentType: "redirect",
+            redirectUrl: omiseRes.authorize_uri
+        };
+    }
+
+    // กรณีจ่ายสำเร็จทันที (เช่น Card ไม่ต้อง 3DS)
+    return {
+        paymentType: "immediate",
+        status: omiseRes.status
+    };
+};
