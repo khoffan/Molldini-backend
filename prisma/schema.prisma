@@ -193,35 +193,46 @@ model Address {
 
 // --- 3. Order & OrderItems (หัวใจของการ Checkout) ---
 model Order {
-  id              String      @id @default(uuid())
-  chargeId        String?
-  userId          String
-  user            Users       @relation(fields: [userId], references: [id])
-  totalPrice      Float       @default(0)
-  status          OrderStatus @default(PENDING)
-  invoice         Invoice?
-  shippingAddress String // เช่น "บ้านเลขที่... เขต... แขวง..."
-  receiverName    String // ชื่อผู้รับสินค้า
-  receiverPhone   String // เบอร์ติดต่อ
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  expiredAt       DateTime
-  receipt         Receipt?
-  subOrders       SubOrder[]
+  id               String             @id @default(uuid())
+  chargeId         String?
+  userId           String
+  user             Users              @relation(fields: [userId], references: [id])
+  totalPrice       Decimal            @default(0) @db.Decimal(10, 2)
+  // 🟢 เพิ่มยอดสรุปของระบบใน Order หลัก
+  totalSystemFee   Decimal            @default(0) @db.Decimal(10, 2) // ผลรวมของ systemFeeAmount จากทุก SubOrder
+  totalNetMerchant Decimal            @default(0) @db.Decimal(10, 2) // ผลรวมของ netToMerchant จากทุก SubOrder
+  status           OrderStatus        @default(PENDING)
+  invoice          Invoice?
+  shippingAddress  String // เช่น "บ้านเลขที่... เขต... แขวง..."
+  receiverName     String // ชื่อผู้รับสินค้า
+  receiverPhone    String // เบอร์ติดต่อ
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  expiredAt        DateTime
+  receipt          Receipt?
+  subOrders        SubOrder[]
+  systemRevenueLog SystemRevenueLog[]
 }
 
 model SubOrder {
-  id           String         @id @default(uuid())
+  id           String  @id @default(uuid())
   orderId      String
-  order        Order          @relation(fields: [orderId], references: [id])
+  order        Order   @relation(fields: [orderId], references: [id])
   merchantId   String
   merchantName String?
-  shippingFee  Float          @default(0)
-  totalPrice   Float          @default(0)
-  status       SubOrderStatus @default(PENDING)
-  createAt     DateTime       @default(now())
-  updateAt     DateTime       @updatedAt
-  orderItems   OrderItems[]
+  shippingFee  Decimal @default(0) @db.Decimal(10, 2)
+  totalPrice   Decimal @default(0) @db.Decimal(10, 2)
+
+  // 🟢 เพิ่มส่วนนี้เพื่อความง่ายในการดึงข้อมูล Settlement
+  feePercentage   Decimal @default(5.0) @db.Decimal(10, 2) // Snapshot % ณ ตอนซื้อ
+  systemFeeAmount Decimal @default(0) @db.Decimal(10, 2) // ยอดที่ระบบหัก (totalPrice * 0.05)
+  netToMerchant   Decimal @default(0) @db.Decimal(10, 2) // ยอดที่ร้านค้าจะได้รับจริง (totalPrice - systemFeeAmount)
+
+  status           SubOrderStatus    @default(PENDING)
+  createAt         DateTime          @default(now())
+  updateAt         DateTime          @updatedAt
+  orderItems       OrderItems[]
+  systemRevenueLog SystemRevenueLog?
 }
 
 model OrderItems {
@@ -232,7 +243,7 @@ model OrderItems {
   merchantId       String
   cartItemId       String
   title            String // Snapshot ชื่อสินค้า
-  price            Float // Snapshot ราคา ณ วันที่ซื้อ
+  price            Decimal         @db.Decimal(10, 2) // Snapshot ราคา ณ วันที่ซื้อ
   quantity         Int
   image            String? // Snapshot รูสินค้า
   productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
@@ -246,7 +257,7 @@ model Invoice {
   id            String        @id @default(uuid())
   orderId       String        @unique
   order         Order         @relation(fields: [orderId], references: [id])
-  amount        Float
+  amount        Decimal       @db.Decimal(10, 2)
   paymentMethod String? // เช่น "QR_PROMPTPAY", "CREDIT_CARD"
   status        PaymentStatus @default(UNPAID)
   paidAt        DateTime?
@@ -263,11 +274,35 @@ model Receipt {
   invoice   Invoice @relation(fields: [invoiceId], references: [id])
 
   receiptNumber String   @unique // เช่น REC20240001
-  amount        Float // ยอดที่จ่ายจริง
+  amount        Decimal  @db.Decimal(10, 2) // ยอดที่จ่ายจริง
   paymentMethod String // เช่น "PROMPTPAY"
   omiseChargeId String? // เก็บ ID จาก Omise ไว้ตรวจสอบ
   paidAt        DateTime @default(now())
   createdAt     DateTime @default(now())
+}
+
+model SystemSetting {
+  id            String   @id @default(uuid())
+  feePercentage Decimal  @default(0.5) @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  updatedBy     String?
+}
+
+model SystemRevenueLog {
+  id            String       @id @default(uuid())
+  orderId       String
+  subOrderId    String       @unique
+  totalAmount   Decimal      @db.Decimal(10, 2)
+  feePercentage Float
+  revenueAmount Decimal      @db.Decimal(10, 2)
+  netToMerchant Decimal      @db.Decimal(10, 2)
+  status        SysLogStatus @default(PENDING)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  subOrder      SubOrder     @relation(fields: [subOrderId], references: [id])
+
+  order Order @relation(fields: [orderId], references: [id])
 }
 
 // --- 5. Points System ---
@@ -357,6 +392,13 @@ enum SubOrderStatus {
 enum PaymentStatus {
   UNPAID
   PAID
+  FAILED
+  REFUNDED
+}
+
+enum SysLogStatus {
+  PENDING
+  SUCCESS
   FAILED
   REFUNDED
 }

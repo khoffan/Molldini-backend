@@ -1,15 +1,15 @@
 import { Request, Response, Errback } from "express";
-import prisma from "../lib/prisma_config";
+import prisma, { Decimal } from "../lib/prisma_config";
 import { Order, OrderItems, OrderStatus, PaymentStatus, SubOrderStatus } from "../../generated/prisma/client";
 import { AuthenticatedRequest } from "src/interface/authRequestInterface";
 import { Auth } from "firebase-admin/auth";
 import omise from "../lib/omise_confic";
 
-
 const createCharge = async (source: string, amount: number, orderId: string | null): Promise<any> => {
     return new Promise((resolve, reject) => {
+        const redirect = process.env.NODE_ENV === "dev" ? `https://supercrowned-unhortative-sun.ngrok-free.dev/success/${orderId}` : `${process.env.FRONTEND_URL}/success/${orderId}`
         omise.charges.create({
-            amount: (amount * 100),
+            amount: amount,
             currency: "THB",
             return_uri: `${process.env.FRONTEND_URL}/success/${orderId}`,
             metadata: {
@@ -297,11 +297,7 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
     try {
         const { orderId } = req.params;
         const { source, shippingId } = req.body;
-        const shippingMethod = await prisma.shipping.findUnique({
-            where: {
-                id: shippingId as string
-            }
-        });
+
         const orderData = await prisma.order.findUnique({
             where: {
                 id: orderId as string
@@ -316,25 +312,69 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
                 invoice: true
             }
         });
-        const amount = orderData?.totalPrice || 0;
-        const isFree = shippingMethod?.freeShippingThreshold && amount >= shippingMethod.freeShippingThreshold;
-        const shippingCost = isFree ? 0 : shippingMethod?.price || 0;
-        const totalPrice: number = amount + shippingCost;
 
-        const orderDataId = orderData?.id || null;
-        const omiseRes = await createCharge(source, totalPrice, orderDataId);
+        const shippingMethod = await prisma.shipping.findUnique({
+            where: {
+                id: shippingId as string
+            }
+        });
+        let totalSystemFee = new Decimal(0);
+        let totalNetMerchant = new Decimal(0);
 
-        await prisma.$transaction(async (tx) => {
-            await tx.order.update({
-                where: {
-                    id: orderId as string
-                },
+        const orderAmount = new Decimal(orderData.totalPrice || 0);
+
+        const threshold = new Decimal(shippingMethod?.freeShippingThreshold || 0);
+        const isFree = shippingMethod?.freeShippingThreshold && orderAmount.gte(threshold);
+        const shippingCost = isFree ? new Decimal(0) : new Decimal(shippingMethod?.price || 0);
+        // 3. เริ่ม Transaction เพื่อคำนวณรายร้านและบันทึก
+        const result = await prisma.$transaction(async (tx) => {
+
+            // วนลูป SubOrders เพื่อคำนวณหัก 5% รายร้าน
+            for (const sub of orderData.subOrders) {
+                const subTotal = new Decimal(sub.totalPrice);
+                const feePercent = new Decimal(sub.feePercentage); // 5.0
+
+                // คำนวณ Fee: (ยอดรวมร้าน * 5) / 100
+                const systemFee = subTotal.times(feePercent).dividedBy(100);
+                const netToMerchant = subTotal.minus(systemFee);
+
+                // สะสมยอดรวมไว้ใส่ Order หลัก
+                totalSystemFee = totalSystemFee.plus(systemFee);
+                totalNetMerchant = totalNetMerchant.plus(netToMerchant);
+
+                // อัปเดต SubOrder แต่ละตัว
+                await tx.subOrder.update({
+                    where: { id: sub.id },
+                    data: {
+                        systemFeeAmount: systemFee,
+                        netToMerchant: netToMerchant
+                    }
+                });
+            }
+
+            // ยอดรวมทั้งหมดที่ลูกค้าต้องจ่าย (บาท)
+            const finalTotalPrice = orderAmount.plus(shippingCost);
+
+            // สร้าง Charge ไปยัง Omise (แปลงเป็นหน่วยสตางค์)
+            const amountInSubunits = finalTotalPrice.times(100).toNumber();
+            console.log("🚀 ~ checkoutOrder ~ amountInSubunits:", amountInSubunits)
+
+            const omiseRes = await createCharge(source, amountInSubunits, orderData.id);
+
+            // อัปเดต Order หลัก
+            const updatedOrder = await tx.order.update({
+                where: { id: orderId as string },
                 data: {
                     chargeId: omiseRes.id,
+                    totalPrice: finalTotalPrice,
+                    totalSystemFee: totalSystemFee,
+                    totalNetMerchant: totalNetMerchant.plus(shippingCost) // สมมติให้ค่าส่งเป็นของร้านค้าทั้งหมด
                 }
-            })
-        })
-        const paymentInfoRes = handlePaymentResponse(omiseRes);
+            });
+
+            return { omiseRes, updatedOrder };
+        });
+        const paymentInfoRes = handlePaymentResponse(result.omiseRes);
 
         return res.status(200).json({
             message: "Order checked out successfully",

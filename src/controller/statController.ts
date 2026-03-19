@@ -1,4 +1,4 @@
-import prisma from "../lib/prisma_config";
+import prisma, { Decimal } from "../lib/prisma_config";
 import { Request, Response } from "express";
 import client from "../lib/redis_config";
 import { AuthenticatedRequest } from "src/interface/authRequestInterface";
@@ -379,11 +379,23 @@ export const getOrderProductStats = async (req: Request, res: Response) => {
         const catMap: any = {};
         categorySales.forEach(p => {
             const catName = p.category?.name || 'Uncategorized';
-            let total = 0;
+
+            // ตรวจสอบก่อนว่าใน catMap มีคีย์นี้หรือยัง ถ้าไม่มีให้เริ่มที่ Decimal(0)
+            if (!catMap[catName]) {
+                catMap[catName] = new Decimal(0);
+            }
+
             p.variants.forEach(v => {
-                v.orderItems.forEach(item => total += (item.price * item.quantity));
+                v.orderItems.forEach(item => {
+                    // คำนวณ: ราคา * จำนวน (item.price ต้องมั่นใจว่าเป็น Decimal หรือแปลงใหม่)
+                    const itemPrice = new Decimal(item.price);
+                    const itemTotal = itemPrice.times(item.quantity);
+
+                    // บวกยอดเข้าไปในหมวดหมู่ที่ตรงกัน
+                    // ใช้ .plus() แทน +=
+                    catMap[catName] = catMap[catName].plus(itemTotal);
+                });
             });
-            catMap[catName] = (catMap[catName] || 0) + total;
         });
 
         return res.status(200).json({

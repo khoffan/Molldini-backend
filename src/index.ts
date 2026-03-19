@@ -46,7 +46,7 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        const isLocal = process.env.NODE_ENV === 'local';
+        const isLocal = process.env.NODE_ENV === 'local' || process.env.NODE_ENV === 'dev';
         // Check if the origin is in the allowedOrigins list
         // Allow requests with no origin (e.g. mobile apps, curl requests)
         if (!origin || allowedOrigins.includes(origin) || isLocal) {

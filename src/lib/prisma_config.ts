@@ -1,4 +1,4 @@
-import { PrismaClient } from "../../generated/prisma/client";
+import { PrismaClient, Prisma } from "../../generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import dotenv from "dotenv";
@@ -24,7 +24,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const prisma = globalForPrisma.prisma ?? prismaClientSingleton();
-
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
+export const Decimal = Prisma.Decimal;
 export default prisma;

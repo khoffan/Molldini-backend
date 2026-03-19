@@ -12,9 +12,7 @@
     "skipLibCheck": true,                               /* ข้ามการเช็ค type ใน library อื่น (ช่วยให้เร็วขึ้น) */
     "forceConsistentCasingInFileNames": true,           /* ป้องกันปัญหาชื่อไฟล์พิมพ์เล็ก-ใหญ่ */
     "baseUrl": ".",                         /* สำหรับตั้งค่า path */
-    "paths": {
-      "@prisma/client": ["node_modules/@prisma/client"]
-    }
+    "paths": {}
   },
   "include": ["src/**/*"],                              /* บอกให้ TS ดูแลเฉพาะไฟล์ใน src */
   "exclude": ["node_modules"]
