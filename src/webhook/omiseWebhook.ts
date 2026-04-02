@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import { AuthenticatedRequest } from "../interface/authRequestInterface";
 import prisma from "../lib/prisma_config";
-import { OrderStatus, PaymentStatus, SubOrderStatus } from "../../generated/prisma/client";
+import { OrderStatus, PaymentStatus, SubOrderStatus, SysLogStatus } from "../../generated/prisma/client";
 import { updateOrderData } from "src/controller/orderController";
 const router = Router();
 
@@ -15,123 +15,108 @@ router.post("/webhook", async (req: AuthenticatedRequest, res: Response) => {
             const chargeId = chargeData.id;
             const chargeStatus = chargeData.status;
             const orderId = chargeData.metadata.orderId;
-            const existingOrder = await prisma.order.findUnique({
-                where: {
-                    id: orderId
-                },
-                include: {
-                    subOrders: {
-                        include: {
-                            orderItems: true
-                        }
+            const [existingOrder, systemSetting] = await Promise.all([
+                prisma.order.findUnique({
+                    where: {
+                        id: orderId
                     },
-                    invoice: true
-                }
-            })
+                    include: {
+                        subOrders: {
+                            include: {
+                                orderItems: true
+                            }
+                        },
+                        invoice: true
+                    }
+                }),
+                prisma.systemSetting.findFirst({ orderBy: { createdAt: 'desc' } })
+            ]);
 
-            if (existingOrder && existingOrder.status === OrderStatus.PAID) {
-                return res.status(200).json({ message: "Order already delivered" });
-            }
+            if (!existingOrder) return res.status(404).json({ message: "Order not found" });
+            if (existingOrder.status === OrderStatus.PAID) return res.sendStatus(200);
+
+            const feePercent = systemSetting ? Number(systemSetting.feePercentage) : 5.0; // Default 5% ถ้าไม่มีใน DB
 
             if (chargeStatus === 'successful') {
                 const now = new Date();
                 const timestamp = now.toISOString().replace(/[-T:.Z]/g, "");
-                // จะได้รูปแบบ YYYYMMDDHHMMSSmmm
                 const receiptNumber = `RE-${timestamp}-${Math.floor(Math.random() * 100000)}`;
 
-                console.log(receiptNumber); // ผลลัพธ์: RE-20260218171538123
-
                 await prisma.$transaction(async (tx) => {
+                    // 2. อัปเดตสถานะ Order และ Invoice
                     const orderUpdate = await tx.order.update({
-                        where: {
-                            id: orderId
-                        },
-                        data: {
-                            status: OrderStatus.PAID
-                        },
-                        include: {
-                            subOrders: {
-                                include: {
-                                    orderItems: true
-                                }
-                            },
-                            invoice: true
-                        }
-                    })
+                        where: { id: orderId },
+                        data: { status: OrderStatus.PAID },
+                        include: { subOrders: true }
+                    });
 
                     await tx.subOrder.updateMany({
-                        where: {
-                            orderId: orderId
-                        },
-                        data: {
-                            status: SubOrderStatus.PREPARING
-                        }
-                    })
+                        where: { orderId: orderId },
+                        data: { status: SubOrderStatus.PREPARING }
+                    });
 
-                    const invopiceUpdate = await tx.invoice.update({
-                        where: {
-                            orderId: orderUpdate.id as string
-                        },
-                        data: {
-                            status: PaymentStatus.PAID,
-                            paidAt: new Date(),
-                        },
+                    const invoiceUpdate = await tx.invoice.update({
+                        where: { orderId: orderId },
+                        data: { status: PaymentStatus.PAID, paidAt: now }
+                    });
 
-                    })
-
-                    const recipt = await tx.receipt.create({
+                    // 3. สร้าง Receipt
+                    await tx.receipt.create({
                         data: {
                             amount: orderUpdate.totalPrice,
-                            paymentMethod: invopiceUpdate.paymentMethod!,
+                            paymentMethod: invoiceUpdate.paymentMethod!,
+                            shippingCost: invoiceUpdate.shippingCost,
                             omiseChargeId: chargeId,
-                            invoiceId: invopiceUpdate.id,
+                            invoiceId: invoiceUpdate.id,
                             orderId: orderUpdate.id,
-                            paidAt: new Date(),
-                            receiptNumber: receiptNumber.toString()
+                            paidAt: now,
+                            receiptNumber: receiptNumber
                         }
-                    })
-                    if (recipt) {
-                        const subOrders = orderUpdate.subOrders;
-                        const cartItemId = orderUpdate.subOrders.flatMap((sub) => sub.orderItems.map((it) => it.cartItemId));
-                        await Promise.all(subOrders.map(async (sub) => {
-                            await Promise.all(sub.orderItems.map(async (it) => {
-                                await tx.productVariant.update({
-                                    where: {
-                                        id: it.productVariantId as string
-                                    },
-                                    data: {
-                                        stock: {
-                                            decrement: it.quantity
-                                        }
-                                    }
-                                })
-                                if (cartItemId && cartItemId.length > 0) {
-                                    await Promise.all(
-                                        cartItemId.map(async (cartItemId) => {
-                                            await tx.cartItems.delete({
-                                                where: {
-                                                    id: cartItemId
-                                                }
-                                            })
-                                        })
-                                    )
-                                }
-                            }))
-                        }))
+                    });
+
+                    // 4. 🔥 ระบบจัดการรายได้ (Revenue Logging)
+                    // เราจะ Loop ทุก SubOrder เพื่อสร้าง Log รายได้แยกตามร้านค้า
+                    for (const subOrder of existingOrder.subOrders) {
+                        const totalAmount = Number(subOrder.totalPrice);
+                        const revenueAmount = totalAmount * (feePercent / 100);
+                        const netToMerchant = totalAmount - revenueAmount;
+
+                        await tx.systemRevenueLog.create({
+                            data: {
+                                orderId: orderId,
+                                subOrderId: subOrder.id,
+                                totalAmount: totalAmount,
+                                feePercentage: feePercent,
+                                revenueAmount: revenueAmount,
+                                netToMerchant: netToMerchant,
+                                status: SysLogStatus.SUCCESS
+                            }
+                        });
                     }
 
-                });
-                console.log(`✅ Payment Success: Order ${orderId}`);
-            } else {
-                await prisma.order.update({
-                    where: {
-                        id: orderId
-                    },
-                    data: {
-                        status: OrderStatus.CANCELLED
-                    },
+                    // 5. ตัดสต็อกและลบตะกร้า
+                    for (const sub of existingOrder.subOrders) {
+                        for (const it of sub.orderItems) {
+                            // ตัดสต็อก
+                            await tx.productVariant.update({
+                                where: { id: it.productVariantId as string },
+                                data: { stock: { decrement: it.quantity } }
+                            });
+                            // ลบจากตะกร้า
+                            if (it.cartItemId) {
+                                await tx.cartItems.delete({ where: { id: it.cartItemId } });
+                            }
+                        }
+                    }
                 });
 
+                console.log(`✅ Revenue Logged & Payment Success: Order ${orderId}`);
+            } else {
+                // กรณีจ่ายเงินไม่สำเร็จ
+                await prisma.order.update({
+                    where: { id: orderId },
+                    data: { status: OrderStatus.CANCELLED }
+                });
                 console.log(`❌ Payment Failed: Order ${orderId}`);
             }
 

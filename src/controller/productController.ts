@@ -88,6 +88,7 @@ export const addProductImportFIle = async (req: AuthenticatedRequest, res: Respo
         if (!file) {
             return res.status(400).json({ message: "No file uploaded" });
         }
+        console.log("file", file)
         const results: any[] = [];
         const filePath = path.join(process.cwd(), req.file.path);
 
@@ -145,12 +146,10 @@ export const addProductImportFIle = async (req: AuthenticatedRequest, res: Respo
                                     merchantId: merchantId,
                                     categoryId: categoryMap[p.categoryName],
                                     images: {
-                                        create: p.images?.map((img: any) => {
-                                            return {
-                                                url: img,
-                                                path: img,
-                                            }
-                                        })
+                                        create: p.images?.filter((img: string) => img).map((img: string) => ({
+                                            url: img,
+                                            path: img,
+                                        }))
                                     },
                                     variants: {
                                         create: p.variants.map((v: any) => {
@@ -160,12 +159,10 @@ export const addProductImportFIle = async (req: AuthenticatedRequest, res: Respo
                                                 stock: v.stock,
                                                 sku: v.sku,
                                                 images: {
-                                                    create: v.images?.map((img: any) => {
-                                                        return {
-                                                            url: img,
-                                                            path: img,
-                                                        }
-                                                    })
+                                                    create: v.images?.filter((img: string) => img).map((img: string) => ({
+                                                        url: img,
+                                                        path: img
+                                                    }))
                                                 }
                                             }
                                         })
@@ -176,15 +173,15 @@ export const addProductImportFIle = async (req: AuthenticatedRequest, res: Respo
                         } catch (e: any) {
                             // ตรวจสอบว่า Error คือ Unique Constraint ของ Prisma (P2002)
                             if (e.code === 'P2002') {
-                                outcomes.push({ status: 'skipped', title: p.title });
-                                continue; // ข้ามตัวนี้แล้วทำตัวต่อไป
+                                outcomes.push({ status: 'error', title: p.title, message: `SKU ซ้ำในระบบ: ${e.meta?.target}` });
+                                continue;
                             }
                             throw e; // ถ้าเป็น error อื่นให้ rollback ทั้งหมด
                         }
                     }
                     return outcomes
                 })
-
+                console.log("transaction success")
 
                 await invalidateProductCache()
 

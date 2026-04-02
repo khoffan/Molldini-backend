@@ -19,9 +19,6 @@ const storage = multer.diskStorage({
 
 export const upload = multer({
     storage, fileFilter: (req, file, cb) => {
-        console.log("file", file)
-        console.log("file", file.mimetype)
-
         // เพิ่ม mimetype ที่เป็นไปได้ของ CSV ทั้งหมด
         const allowedTypes = [
             'text/csv',

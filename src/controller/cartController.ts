@@ -30,14 +30,7 @@ const checkProductIdExist = async (productId: string) => {
     return product;
 }
 
-const checkUserIdExist = async (userId: string) => {
-    const user = await prisma.users.findUnique({
-        where: {
-            id: userId
-        }
-    });
-    return user;
-}
+
 
 export const addToCart = async (req: AuthenticatedRequest, res: Response) => {
     const user = req.user!;
@@ -198,15 +191,17 @@ export const updateDecrementedCartItem = async (req: AuthenticatedRequest, res: 
 }
 
 export const deleteCartItem = async (req: Request, res: Response) => {
-    const { id } = req.params;
     try {
-        const deletedCartItem = await prisma.cartItems.delete({
+        const { id } = req.params;
+        await prisma.cartItems.delete({
             where: {
-                id: id as string
+                productId: id as string
             }
         });
         console.log("Cart item deleted successfully");
-        return res.status(200).json(deletedCartItem);
+        return res.status(204).json({
+            message: "Cart item deleted successfully"
+        });
     } catch (e: any) {
         console.log("Cart item deleted failed");
         return res.status(500).json({ message: e.message });

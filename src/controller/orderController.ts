@@ -1,8 +1,7 @@
-import { Request, Response, Errback } from "express";
+import { Response } from "express";
 import prisma, { Decimal } from "../lib/prisma_config";
-import { Order, OrderItems, OrderStatus, PaymentStatus, SubOrderStatus } from "../../generated/prisma/client";
+import { OrderStatus, PaymentStatus, SubOrderStatus } from "../../generated/prisma/client";
 import { AuthenticatedRequest } from "src/interface/authRequestInterface";
-import { Auth } from "firebase-admin/auth";
 import omise from "../lib/omise_confic";
 
 const createCharge = async (source: string, amount: number, orderId: string | null): Promise<any> => {
@@ -11,7 +10,7 @@ const createCharge = async (source: string, amount: number, orderId: string | nu
         omise.charges.create({
             amount: amount,
             currency: "THB",
-            return_uri: `${process.env.FRONTEND_URL}/success/${orderId}`,
+            return_uri: redirect,
             metadata: {
                 orderId
             },
@@ -318,14 +317,18 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
                 id: shippingId as string
             }
         });
+
+
+        const productTotal = new Decimal(orderData.totalPrice || 0);
+        const threshold = new Decimal(shippingMethod?.freeShippingThreshold || 0);
+
+        const isFree = shippingMethod?.freeShippingThreshold && productTotal.gte(threshold);
+        const shippingCost = isFree ? new Decimal(0) : new Decimal(shippingMethod?.price || 0);
+
+        const finalNetAmount = productTotal.plus(shippingCost);
+
         let totalSystemFee = new Decimal(0);
         let totalNetMerchant = new Decimal(0);
-
-        const orderAmount = new Decimal(orderData.totalPrice || 0);
-
-        const threshold = new Decimal(shippingMethod?.freeShippingThreshold || 0);
-        const isFree = shippingMethod?.freeShippingThreshold && orderAmount.gte(threshold);
-        const shippingCost = isFree ? new Decimal(0) : new Decimal(shippingMethod?.price || 0);
         // 3. เริ่ม Transaction เพื่อคำนวณรายร้านและบันทึก
         const result = await prisma.$transaction(async (tx) => {
 
@@ -347,16 +350,15 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
                     where: { id: sub.id },
                     data: {
                         systemFeeAmount: systemFee,
-                        netToMerchant: netToMerchant
+                        netToMerchant: netToMerchant,
+                        shippingFee: shippingCost,
+                        shippingProvider: shippingMethod?.name
                     }
                 });
             }
 
-            // ยอดรวมทั้งหมดที่ลูกค้าต้องจ่าย (บาท)
-            const finalTotalPrice = orderAmount.plus(shippingCost);
-
             // สร้าง Charge ไปยัง Omise (แปลงเป็นหน่วยสตางค์)
-            const amountInSubunits = finalTotalPrice.times(100).toNumber();
+            const amountInSubunits = finalNetAmount.times(100).toNumber();
             console.log("🚀 ~ checkoutOrder ~ amountInSubunits:", amountInSubunits)
 
             const omiseRes = await createCharge(source, amountInSubunits, orderData.id);
@@ -366,9 +368,19 @@ export const checkoutOrder = async (req: AuthenticatedRequest, res: Response) =>
                 where: { id: orderId as string },
                 data: {
                     chargeId: omiseRes.id,
-                    totalPrice: finalTotalPrice,
+                    totalPrice: productTotal,
+                    totalShippingCost: shippingCost,
+                    netAmount: finalNetAmount,
                     totalSystemFee: totalSystemFee,
-                    totalNetMerchant: totalNetMerchant.plus(shippingCost) // สมมติให้ค่าส่งเป็นของร้านค้าทั้งหมด
+                    totalNetMerchant: totalNetMerchant.plus(shippingCost)
+                }
+            });
+
+            await tx.invoice.update({
+                where: { orderId: orderId as string },
+                data: {
+                    amount: finalNetAmount,
+                    shippingCost: shippingCost
                 }
             });
 

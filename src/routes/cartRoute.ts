@@ -160,6 +160,6 @@ router.put("/carts/decreament", checkAuth, updateDecrementedCartItem);
  *       404:
  *         description: Cart item not found
  */
-router.delete("/carts/:id", checkAuth, deleteCartItem);
+router.delete("/carts/item/:id", checkAuth, deleteCartItem);
 
 export default router;

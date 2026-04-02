@@ -21,6 +21,7 @@ import webhookRouter from './webhook/omiseWebhook';
 import statRouter from './routes/statRoute';
 import paymentRouter from './routes/paymentRoute';
 import shippingRouter from './routes/shippingRoute';
+import systemRouter from './routes/systemRoute';
 
 //cron
 import { initOrderCron } from "./cron/orderChecker";
@@ -73,7 +74,7 @@ initOrderCron();
  * 200:
  * description: Returns a mysterious greeting.
  */
-app.get("/me", (req, res) => {
+app.get("/", (req, res) => {
     res.send("Hello World!");
 });
 
@@ -97,6 +98,7 @@ app.use("/api/v1", webhookRouter);
 app.use("/api/v1", statRouter);
 app.use("/api/v1", paymentRouter);
 app.use("/api/v1", shippingRouter);
+app.use("/api/v1", systemRouter)
 
 if (app._router && app._router.stack) {
     console.log("--- รายชื่อ Route ที่ลงทะเบียนไว้ ---");
@@ -116,10 +118,12 @@ if (app._router && app._router.stack) {
 const isProduction = process.env.NODE_ENV === "production"
 
 app.listen(Number(port), "0.0.0.0", async () => {
+    if (!isProduction) {
+        console.log(`Server is running on port http://localhost:${port}`);
+    }
     console.log('Connecting to Redis...');
     // connection redis
     await client.connect();
-    console.log(`Server is running on port http://localhost:${port}`);
     // ดักไว้: จะรัน Auto Migrate เฉพาะบน Production (เช่น Render) เท่านั้น
     if (isProduction) {
         console.log('🔄 Production detected: Starting Background Migration...');
