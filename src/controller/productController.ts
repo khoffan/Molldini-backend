@@ -7,6 +7,7 @@ import { Products, ProductVariant, Merchant } from "../../generated/prisma/clien
 import { AuthenticatedRequest } from "../interface/authRequestInterface";
 import { getCache, setCache } from "../utils/redis_utils";
 import { PRODUCT_KEYS, invalidateProductCache } from "../cache/cache_product_key";
+import { Readable } from "stream";
 
 const COMMON_COLUMNS = {
     title: ['product_name', 'title', 'ชื่อสินค้า', 'item', 'name'],
@@ -93,7 +94,19 @@ export const addProductImportFIle = async (req: AuthenticatedRequest, res: Respo
         const filePath = path.join(process.cwd(), req.file.path);
 
         // ขั้นตอนการ Read Stream และ Parse CSV
-        fs.createReadStream(filePath)
+        let stream: Readable;
+
+        if (file.buffer) {
+            stream = Readable.from(file.buffer)
+        } else {
+            const filePath = path.join(process.cwd(), file.path);
+            if (!fs.existsSync(filePath)) {
+                return res.status(404).json({ message: "File not found on disk" });
+            }
+            stream = fs.createReadStream(filePath);
+        }
+
+        stream
             .pipe(csv())
             .on('data', (data) => results.push(data))
             .on('end', async () => {
@@ -203,8 +216,7 @@ export const addProductImportFIle = async (req: AuthenticatedRequest, res: Respo
                 res.status(500).json({ message: 'Error parsing CSV', error });
             });
     } catch (e: any) {
-        console.log("File uploaded failed");
-        console.log(e.message);
+        console.error("Upload failed:", e.message);
         return res.status(500).json({ message: e.message });
     }
 }

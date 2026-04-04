@@ -5,8 +5,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const uploadDir = "upload/csv";
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "local") {
+    if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+    }
 }
 
 let storage: multer.StorageEngine;
@@ -27,7 +29,11 @@ if (process.env.NODE_ENV === "development") {
 
 
 export const upload = multer({
-    storage, fileFilter: (req, file, cb) => {
+    storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024, // จำกัดไว้ 5MB กัน Server ค้าง
+    },
+    fileFilter: (req, file, cb) => {
         // เพิ่ม mimetype ที่เป็นไปได้ของ CSV ทั้งหมด
         const allowedTypes = [
             'text/csv',
