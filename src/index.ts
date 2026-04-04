@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Response, Request, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from './lib/swagger_config';
@@ -25,6 +25,7 @@ import systemRouter from './routes/systemRoute';
 
 //cron
 import { initOrderCron } from "./cron/orderChecker";
+import multer from "multer";
 
 
 
@@ -100,20 +101,29 @@ app.use("/api/v1", paymentRouter);
 app.use("/api/v1", shippingRouter);
 app.use("/api/v1", systemRouter)
 
-if (app._router && app._router.stack) {
-    console.log("--- รายชื่อ Route ที่ลงทะเบียนไว้ ---");
-    app._router.stack.forEach((middleware: any) => {
-        if (middleware.route) { // routes registered directly on the app
-            console.log(`Route: ${Object.keys(middleware.route.methods)} ${middleware.route.path}`);
-        } else if (middleware.name === 'router') { // router middleware
-            middleware.handle.stack.forEach((handler: any) => {
-                if (handler.route) {
-                    console.log(`Router Path: ${Object.keys(handler.route.methods)} ${handler.route.path}`);
-                }
-            });
-        }
+// ต้องมั่นใจว่าวางไว้หลัง Route ทั้งหมด
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    // 1. บังคับใส่ CORS Header ในทุก Error Response
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin!)) {
+        res.header("Access-Control-Allow-Origin", origin);
+        res.header("Access-Control-Allow-Credentials", "true");
+    }
+
+    // 2. จัดการ Error ของ Multer โดยเฉพาะ
+    if (err instanceof multer.MulterError) {
+        return res.status(400).json({
+            message: `Multer Error: ${err.message}`,
+            code: err.code
+        });
+    }
+
+    // 3. จัดการ Error อื่นๆ (รวมถึงที่ throw มาจาก checkAuth/isMerchant)
+    console.error("Global Error:", err);
+    res.status(err.status || 500).json({
+        message: err.message || "Internal Server Error"
     });
-}
+});
 
 const isProduction = process.env.NODE_ENV === "production"
 

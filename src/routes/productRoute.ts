@@ -85,7 +85,7 @@ router.get("/products/merchant", checkAuth, isMerchant, getMerchantProducts);
 router.post("/products", checkAuth, isMerchant, addProduct);
 
 
-router.post("/products/import-csv", upload.single("file"), checkAuth, isMerchant, addProductImportFIle)
+router.post("/products/import-csv", checkAuth, isMerchant, upload.single("file"), addProductImportFIle)
 
 /**
  * @openapi
