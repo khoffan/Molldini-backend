@@ -91,8 +91,6 @@ export const addProductImportFIle = async (req: AuthenticatedRequest, res: Respo
         }
         console.log("file", file)
         const results: any[] = [];
-        const filePath = path.join(process.cwd(), req.file.path);
-
         // ขั้นตอนการ Read Stream และ Parse CSV
         let stream: Readable;
 
