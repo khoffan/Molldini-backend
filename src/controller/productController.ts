@@ -156,31 +156,47 @@ export const addProductImportFIle = async (req: AuthenticatedRequest, res: Respo
                                     description: p.description,
                                     merchantId: merchantId,
                                     categoryId: categoryMap[p.categoryName],
-                                    images: {
-                                        create: p.images?.filter((img: string) => img).map((img: string) => ({
-                                            url: img,
-                                            path: img,
-                                        }))
-                                    },
-                                    variants: {
-                                        create: p.variants.map((v: any) => {
-                                            return {
-                                                variantName: v.variantName,
-                                                price: v.price,
-                                                stock: v.stock,
-                                                sku: v.sku,
-                                                images: {
-                                                    create: v.images?.filter((img: string) => img).map((img: string) => ({
-                                                        url: img,
-                                                        path: img
-                                                    }))
-                                                }
-                                            }
-                                        })
-                                    }
                                 }
                             })
-                            outcomes.push({ status: 'success', id: product.id });
+
+                            // 3. สร้างรูปภาพของ Product (ถ้ามี)
+                            if (p.images && p.images.length > 0) {
+                                const productImages = p.images.filter((img: string) => img).map((img: string) => ({
+                                    url: img,
+                                    path: img,
+                                    productId: product.id // เชื่อม ID ตรงๆ
+                                }));
+                                if (productImages.length > 0) {
+                                    await tx.media.createMany({ data: productImages });
+                                }
+                            }
+
+                            // 4. วนลูปสร้าง Variants ทีละตัวเพื่อคุม Error
+                            for (const v of p.variants) {
+                                const variant = await tx.productVariant.create({
+                                    data: {
+                                        variantName: v.variantName,
+                                        price: parseFloat(v.price) || 0,
+                                        stock: parseInt(v.stock) || 0,
+                                        sku: v.sku,
+                                        productId: product.id
+                                    }
+                                });
+
+                                // 5. สร้างรูปภาพของ Variant (จุดที่เคยพัง)
+                                if (v.images && v.images.length > 0) {
+                                    const variantImages = v.images.filter((img: string) => img).map((img: string) => ({
+                                        url: img,
+                                        path: img,
+                                        variantId: variant.id // ใช้ ID จากตัวที่เพิ่งสร้างสดๆ
+                                    }));
+                                    if (variantImages.length > 0) {
+                                        await tx.media.createMany({ data: variantImages });
+                                    }
+                                }
+                            }
+
+                            outcomes.push({ status: 'success', id: product.id, title: p.title });
                         } catch (e: any) {
                             // ตรวจสอบว่า Error คือ Unique Constraint ของ Prisma (P2002)
                             if (e.code === 'P2002') {
