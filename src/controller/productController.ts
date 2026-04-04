@@ -207,6 +207,8 @@ export const addProductImportFIle = async (req: AuthenticatedRequest, res: Respo
                         }
                     }
                     return outcomes
+                }, {
+                    timeout: 600000 // เพิ่มระยะเวลา timeout จาก 5 วินาที เป็น 10 นาที เพือรองรับการสร้างข้อมูลจำนวนมาก
                 })
                 console.log("transaction success")
 
