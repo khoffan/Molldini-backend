@@ -402,7 +402,18 @@ export const getProductById = async (req: Request, res: Response) => {
                 id: id as string
             },
             include: {
-                variants: true
+                images: true,
+                variants: {
+                    include: {
+                        images: true
+                    }
+                },
+                merchant: {
+                    select: {
+                        name: true,
+                        logoUrl: true
+                    }
+                }
             }
         });
         console.log("Product fetched successfully");
