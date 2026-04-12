@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import prisma from "../lib/prisma_config";
+import prisma from "../common/lib/prisma_config";
 import { CartItems, Carts } from "../../generated/prisma/client";
 import { AuthenticatedRequest } from "../interface/authRequestInterface";
 import { threadCpuUsage } from "process";

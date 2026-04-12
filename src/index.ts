@@ -1,9 +1,9 @@
 import express, { Response, Request, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
-import { swaggerSpec } from './lib/swagger_config';
+import { swaggerSpec } from './common/lib/swagger_config';
 import { exec } from 'child_process';
-import client from './lib/redis_config';
+import client from './common/lib/redis_config';
 
 
 //router
@@ -17,14 +17,14 @@ import orderRouter from './routes/orderRoute';
 import invoiceRouter from './routes/invoiceRoute';
 import mediaRouter from './routes/mediaRoute';
 import notiRoute from './routes/notiRoute';
-import webhookRouter from './webhook/omiseWebhook';
+import webhookRouter from './common/webhook/omiseWebhook';
 import statRouter from './routes/statRoute';
 import paymentRouter from './routes/paymentRoute';
 import shippingRouter from './routes/shippingRoute';
 import systemRouter from './routes/systemRoute';
 
 //cron
-import { initOrderCron } from "./cron/orderChecker";
+import { initOrderCron } from "./common/cron/orderChecker";
 import multer from "multer";
 
 

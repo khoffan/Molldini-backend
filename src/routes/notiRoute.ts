@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { fetchNotification, readNotification } from "../controller/notificationController";
-import { checkAuth } from "../middleware/authMiddleware";
+import { checkAuth } from "../common/middleware/authMiddleware";
 
 
 const router = Router();

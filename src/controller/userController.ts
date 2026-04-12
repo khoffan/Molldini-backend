@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import prisma from "../lib/prisma_config";
+import prisma from "../common/lib/prisma_config";
 import { Address, Role } from "../../generated/prisma/client";
-import { auth } from "../firebase/firebase_config";
+import { auth } from "../common/firebase/firebase_config";
 import { AuthenticatedRequest } from "src/interface/authRequestInterface";
 import dotenv from "dotenv";
 dotenv.config();

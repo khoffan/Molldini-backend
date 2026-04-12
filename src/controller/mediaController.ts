@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import prisma from "../lib/prisma_config";
+import prisma from "../common/lib/prisma_config";
 
 export const setMedia = async (req: Request, res: Response) => {
     const { url, path, fileName, mimeType, size, productId, variantId, userId, merchantId } = req.body;

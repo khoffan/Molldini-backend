@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { createShippingIntent, deleteShipping, deleteSoftShipping, getAllShipping, getShippingById, updateShipping } from "../controller/shippingController";
-import { checkAuth, isAdmin } from "../middleware/authMiddleware";
+import { checkAuth, isAdmin } from "../common/middleware/authMiddleware";
 
 const router = Router();
 

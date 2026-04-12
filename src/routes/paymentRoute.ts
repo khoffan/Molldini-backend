@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { createPaymentIntent, deletePayment, deleteSoftPayment, getAllPayment, getPaymentById, togglePaymentStatus, updatePaymentIntent } from "../controller/paymentContoller";
-import { checkAuth, isAdmin } from "../middleware/authMiddleware";
+import { checkAuth, isAdmin } from "../common/middleware/authMiddleware";
 
 const router = Router();
 

@@ -1,6 +1,6 @@
 import cron from 'node-cron';
-import { createAndSendNotification } from '../controller/notificationController';
-import { OrderStatus } from '../../generated/prisma/client';
+import { createAndSendNotification } from '../../controller/notificationController';
+import { OrderStatus } from '../../../generated/prisma/client';
 import prisma from '../lib/prisma_config';
 
 export const initOrderCron = () => {

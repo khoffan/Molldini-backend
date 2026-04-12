@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../interface/authRequestInterface';
-import { adminMessaging } from '../firebase/firebase_config';
-import prisma from "../lib/prisma_config";
+import { adminMessaging } from '../common/firebase/firebase_config';
+import prisma from "../common/lib/prisma_config";
 
 export const createAndSendNotification = async (
     userId: string,

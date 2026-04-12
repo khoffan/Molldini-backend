@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { setOrder, getOrderById, updateOrderData, checkoutOrder, getOrderUser, getOrderMerchant } from '../controller/orderController';
-import { checkAuth, isMerchant } from '../middleware/authMiddleware';
+import { checkAuth, isMerchant } from '../common/middleware/authMiddleware';
 
 const router = Router();
 

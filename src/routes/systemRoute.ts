@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { settingRevanueFeePercentage, revenueLogs, getSettingRevanue, updateRevenueFeePercentage } from "../controller/systemController";
-import { checkAuth, isAdmin } from "../middleware/authMiddleware";
+import { checkAuth, isAdmin } from "../common/middleware/authMiddleware";
 
 const router = Router()
 

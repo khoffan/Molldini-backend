@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getAllProducts, addProduct, getProductById, getMerchantProducts, updateProductById, searchingProducts, addProductImportFIle } from "../controller/productController";
-import { checkAuth, isMerchant } from "../middleware/authMiddleware";
-import { upload } from "../middleware/upload_confing";
+import { checkAuth, isMerchant } from "../common/middleware/authMiddleware";
+import { upload } from "../common/middleware/upload_confing";
 const router = Router();
 
 /**

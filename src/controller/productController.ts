@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
-import prisma from "../lib/prisma_config";
+import prisma from "../common/lib/prisma_config";
 import csv from 'csv-parser';
 import fs from 'fs';
 import path from 'path';
 import { Products, ProductVariant, Merchant } from "../../generated/prisma/client";
 import { AuthenticatedRequest } from "../interface/authRequestInterface";
-import { getCache, setCache } from "../utils/redis_utils";
-import { PRODUCT_KEYS, invalidateProductCache } from "../cache/cache_product_key";
+import { getCache, setCache } from "../common/utils/redis_utils";
+import { PRODUCT_KEYS, invalidateProductCache } from "../common/cache/cache_product_key";
 import { Readable } from "stream";
 
 const COMMON_COLUMNS = {

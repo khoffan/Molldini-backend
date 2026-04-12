@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { setAddressUser, getAllAddress, getAddresById, updateAddressById, deleteAddressById } from '../controller/addressController'
-import { checkAuth } from "../middleware/authMiddleware";
+import { setAddressUser, getAllAddress, getAddresById, updateAddressById, deleteAddressById, getAllAddressByUserId } from '../controller/addressController'
+import { checkAuth } from "../common/middleware/authMiddleware";
 
 const router = Router();
 
@@ -19,6 +19,22 @@ const router = Router();
  *         description: Unauthorized
  */
 router.get("/addresses", getAllAddress);
+
+/**
+ * @openapi
+ * /api/v1/addresses/user:
+ *   get:
+ *     summary: ดึงรายการที่อยู่ทั้งหมดของผู้ใช้
+ *     tags: [Addresses]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: OK
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/addresses/user", checkAuth, getAllAddressByUserId);
 
 /**
  * @openapi

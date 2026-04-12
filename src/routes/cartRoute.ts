@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { addToCart, deleteCartItem, getCartItemById, getCartItems, updateDecrementedCartItem, updateIncrementCartItem } from "../controller/cartController";
-import { checkAuth } from "../middleware/authMiddleware";
+import { checkAuth } from "../common/middleware/authMiddleware";
 const router = Router();
 
 /**

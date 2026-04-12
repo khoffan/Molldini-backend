@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
-import { AuthenticatedRequest } from "../interface/authRequestInterface";
+import { AuthenticatedRequest } from "../../interface/authRequestInterface";
 import prisma from "../lib/prisma_config";
-import { OrderStatus, PaymentStatus, SubOrderStatus, SysLogStatus } from "../../generated/prisma/client";
+import { OrderStatus, PaymentStatus, SubOrderStatus, SysLogStatus } from "../../../generated/prisma/client";
 import { updateOrderData } from "src/controller/orderController";
 const router = Router();
 

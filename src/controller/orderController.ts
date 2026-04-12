@@ -1,8 +1,8 @@
 import { Response } from "express";
-import prisma, { Decimal } from "../lib/prisma_config";
+import prisma, { Decimal } from "../common/lib/prisma_config";
 import { OrderStatus, PaymentStatus, SubOrderStatus } from "../../generated/prisma/client";
 import { AuthenticatedRequest } from "src/interface/authRequestInterface";
-import omise from "../lib/omise_confic";
+import omise from "../common/lib/omise_confic";
 
 const createCharge = async (source: string, amount: number, orderId: string | null): Promise<any> => {
     return new Promise((resolve, reject) => {

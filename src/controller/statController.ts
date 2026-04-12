@@ -1,6 +1,6 @@
-import prisma, { Decimal } from "../lib/prisma_config";
+import prisma, { Decimal } from "../common/lib/prisma_config";
 import { Request, Response } from "express";
-import client from "../lib/redis_config";
+import client from "../common/lib/redis_config";
 import { AuthenticatedRequest } from "src/interface/authRequestInterface";
 import crypto from 'crypto';
 import { SubOrderStatus } from "../../generated/prisma/client";

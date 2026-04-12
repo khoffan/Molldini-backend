@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import prisma from "../lib/prisma_config";
+import prisma from "../common/lib/prisma_config";
 import { Address } from "../../generated/prisma/client";
 import { AuthenticatedRequest } from "src/interface/authRequestInterface";
 
@@ -51,6 +51,20 @@ export const setAddressUser = async (req: AuthenticatedRequest, res: Response) =
 export const getAllAddress = async (req: Request, res: Response) => {
     try {
         const addresses = await prisma.address.findMany();
+        return res.status(200).json(addresses);
+    } catch (e: any) {
+        return res.status(500).json({ message: e.message });
+    }
+}
+
+export const getAllAddressByUserId = async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!.id;
+    try {
+        const addresses = await prisma.address.findMany({
+            where: {
+                userId: userId as string
+            }
+        });
         return res.status(200).json(addresses);
     } catch (e: any) {
         return res.status(500).json({ message: e.message });

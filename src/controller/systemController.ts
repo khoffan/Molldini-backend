@@ -1,5 +1,5 @@
 import { Response } from 'express'
-import prisma from '../lib/prisma_config'
+import prisma from '../common/lib/prisma_config'
 import { AuthenticatedRequest } from 'src/interface/authRequestInterface';
 
 export const settingRevanueFeePercentage = async (req: AuthenticatedRequest, res: Response) => {

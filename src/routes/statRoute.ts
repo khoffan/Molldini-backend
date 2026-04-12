@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getMerchantStats, getOrderProductStats, getOrderState, getOverviewState, getUserStats } from '../controller/statController';
-import { checkAuth, isAdmin } from '../middleware/authMiddleware';
+import { checkAuth, isAdmin } from '../common/middleware/authMiddleware';
 
 const router = Router();
 

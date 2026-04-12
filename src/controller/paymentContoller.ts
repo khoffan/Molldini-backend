@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../interface/authRequestInterface';
-import prisma from '../lib/prisma_config';
+import prisma from '../common/lib/prisma_config';
 
 interface createPaymentBody {
     label: string;
